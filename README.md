@@ -17,7 +17,7 @@ pkg> add PowerAnalytics
 
 ## Usage
 
-`PowerAnalytics.jl` uses [PowerSystems.jl](https://github.com/NREL/PowerSystems.jl) and [PowerSimulations.jl](https://github.com/NREL/PowerSimulations.jl) to handle the data structures related to and execution of power system simulations.
+`PowerAnalytics.jl` uses [PowerSystems.jl](https://github.com/Sienna-Platform/PowerSystems.jl) and [PowerSimulations.jl](https://github.com/Sienna-Platform/PowerSimulations.jl) to handle the data structures related to and execution of power system simulations.
 
 ```julia
 using PowerAnalytics
