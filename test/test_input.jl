@@ -96,3 +96,24 @@ end
     @test get_time_vec(my_result) == get_time_vec(existing_result)
     @test get_data_vec(my_result) == get_data_vec(existing_result)
 end
+
+@testset "Test get_branch_data" begin
+    # results_ed runs a PTDF network with StaticBranch lines and in-loop DC power flow,
+    # so it carries branch flow variables and/or PowerFlowBranch aux variables.
+    branch_data = PA.get_branch_data(results_ed)
+    @test branch_data isa PA.PowerData
+    @test !isempty(branch_data.data)
+
+    branch_names =
+        PSY.get_name.(PSY.get_components(PSY.ACBranch, PSI.get_system(results_ed)))
+    for df in values(branch_data.data)
+        @test "DateTime" in names(df)
+        @test DataFrames.nrow(df) > 0
+        mapped = setdiff(names(df), ["DateTime"])
+        @test !isempty(mapped)
+        @test all(in(branch_names), mapped)
+    end
+
+    # results_uc is a CopperPlate model with no branch flows; the result is empty but valid.
+    @test PA.get_branch_data(results_uc) isa PA.PowerData
+end
