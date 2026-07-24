@@ -6,6 +6,7 @@ export get_generation_data
 export get_load_data
 export get_service_data
 export categorize_data
+export combine_categories
 export no_datetime
 
 export ComponentSelector, SingularComponentSelector, PluralComponentSelector
