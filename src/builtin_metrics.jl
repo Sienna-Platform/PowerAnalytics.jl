@@ -114,13 +114,26 @@ export calc_active_power,
 
 # NOTE ActivePowerVariable is in units of megawatts per simulation time period, so it's
 # actually energy and it makes sense to sum it up.
-"Calculate the active power of the specified `ComponentSelector`"
+"""
+Active power of the specified `ComponentSelector` from
+[`PowerSimulations.ActivePowerVariable`](@extref).
+
+Values are MW over each simulation time step (energy for that step when summed in time).
+Component- and time-aggregation both default to [`sum`](@extref Base.sum).
+"""
 const calc_active_power = make_component_metric_from_entry(
     "ActivePower",
     PSI.ActivePowerVariable,
 )
 
-"Calculate the production cost expression of the specified `ComponentSelector`"
+"""
+Production cost of the specified `ComponentSelector` from
+`PowerSimulations.ProductionCostExpression`.
+
+This is the solver's production-cost expression only (typically variable/fuel cost), not
+startup or shutdown. See [`calc_startup_cost`](@ref), [`calc_shutdown_cost`](@ref), and
+[`calc_total_cost`](@ref).
+"""
 const calc_production_cost = make_component_metric_from_entry(
     "ProductionCost",
     PSI.ProductionCostExpression,
@@ -150,7 +163,13 @@ const calc_load_from_storage = compose_metrics(
     (-),
     calc_active_power_in, calc_active_power_out)
 
-"Fetch the forecast active power of the specified `ComponentSelector`"
+"""
+Forecast / available active power of the specified `ComponentSelector` from
+[`PowerSimulations.ActivePowerTimeSeriesParameter`](@extref).
+
+Used as the availability side of curtailment and as the numerator of
+[`calc_capacity_factor`](@ref) (not realized dispatch).
+"""
 const calc_active_power_forecast = make_component_metric_from_entry(
     "ActivePowerForecast",
     PSI.ActivePowerTimeSeriesParameter,
@@ -188,21 +207,42 @@ const calc_system_load_from_storage = let
     )
 end
 
-"`SystemLoadForecast` minus `ActivePowerForecast` of the given `ComponentSelector`"
+"""
+[`calc_system_load_forecast`](@ref) minus [`calc_active_power_forecast`](@ref) for the
+given `ComponentSelector`.
+
+Uses forecasts (not realized dispatch) so the series can inform storage or other
+ahead-of-time decisions.
+"""
 const calc_net_load_forecast = compose_metrics(
     "NetLoadForecast",
     # (intentionally done with forecast to inform how storage should be used, among other reasons)
     (-),
     calc_system_load_forecast, calc_active_power_forecast)
 
-"Calculate the `ActivePowerForecast` minus the `ActivePower` of the given `ComponentSelector`"
+"""
+Curtailment of the given `ComponentSelector`:
+[`calc_active_power_forecast`](@ref) minus [`calc_active_power`](@ref).
+
+Requires both [`PowerSimulations.ActivePowerTimeSeriesParameter`](@extref) and
+[`PowerSimulations.ActivePowerVariable`](@extref) for the selected components. Positive
+values mean forecast/availability exceeded realized dispatch.
+"""
 const calc_curtailment = compose_metrics(
     "Curtailment",
     (-),
     calc_active_power_forecast, calc_active_power,
 )
 
-"Calculate the curtailment as a fraction of the `ActivePowerForecast` of the given `ComponentSelector`"
+"""
+Curtailment as a fraction of [`calc_active_power_forecast`](@ref) for the given
+`ComponentSelector`:
+``\\mathrm{curtailment} / \\mathrm{ActivePowerForecast}``.
+
+Aggregation metadata (`agg_meta`) stores the forecast power time series. Component- and
+time-aggregation both use [`weighted_mean`](@ref) with those weights, so periods (or units)
+with more available power dominate the average. A weight of `0` cancels a `NaN` value.
+"""
 const calc_curtailment_frac = ComponentTimedMetric(;
     name = "CurtailmentFrac",
     eval_fn = (
@@ -226,7 +266,16 @@ _integration_denoms(res; kwargs...) =
     compute(calc_system_load_forecast, res; kwargs...),
     compute(calc_system_load_from_storage, res; kwargs...)
 
-"Calculate the `ActivePower` of the given `ComponentSelector` over the sum of the `SystemLoadForecast` and the `SystemLoadFromStorage`"
+"""
+Share of system demand met by the given `ComponentSelector`:
+``\\mathrm{ActivePower} / (\\mathrm{SystemLoadForecast} + \\mathrm{SystemLoadFromStorage})``.
+
+The denominator is system-wide load forecast plus load attributed to storage charging
+([`calc_system_load_forecast`](@ref) + [`calc_system_load_from_storage`](@ref)).
+`agg_meta` stores that denominator; time aggregation uses [`weighted_mean`](@ref), while
+component aggregation uses [`unweighted_sum`](@ref) (shares add across units in a group).
+Component metadata is averaged with `mean`.
+"""
 const calc_integration = ComponentTimedMetric(;
     name = "Integration",
     eval_fn = (
@@ -254,7 +303,19 @@ const calc_integration = ComponentTimedMetric(;
     end,
 )
 
-"Calculate the capacity factor (actual production/rated production) of the specified `ComponentSelector`"
+"""
+Capacity factor of the specified `ComponentSelector`:
+``\\mathrm{ActivePowerForecast} / \\mathrm{rating}``.
+
+!!! warning
+
+    Despite the common industry meaning of "capacity factor", this metric uses
+    [`calc_active_power_forecast`](@ref) (availability parameter), **not** realized
+    [`calc_active_power`](@ref). It is intended as a forecast/rating sanity check. Denominator is `PowerSystems.get_rating`.
+
+`agg_meta` repeats each component's rating; component- and time-aggregation use
+[`weighted_mean`](@ref) with those ratings as weights.
+"""
 const calc_capacity_factor = ComponentTimedMetric(;
     name = "CapacityFactor",
     # (intentionally done with forecast to serve as sanity check -- solar capacity factor shouldn't exceed 20%, etc.)
@@ -269,7 +330,13 @@ const calc_capacity_factor = ComponentTimedMetric(;
     ), component_agg_fn = weighted_mean, time_agg_fn = weighted_mean,
 )
 
-"Calculate the startup cost of the specified `ComponentSelector`"
+"""
+Startup cost of the specified `ComponentSelector`:
+[`PowerSimulations.StartVariable`](@extref) times `PowerSystems.get_start_up` on the
+component's operation cost.
+
+Requires a cost type that defines startup cost (for example thermal generation cost).
+"""
 const calc_startup_cost = ComponentTimedMetric(;
     name = "StartupCost",
     eval_fn = (
@@ -282,7 +349,13 @@ const calc_startup_cost = ComponentTimedMetric(;
     ),
 )
 
-"Calculate the shutdown cost of the specified `ComponentSelector`"
+"""
+Shutdown cost of the specified `ComponentSelector`:
+[`PowerSimulations.StopVariable`](@extref) times `PowerSystems.get_shut_down` on the
+component's operation cost.
+
+Requires a cost type that defines shutdown cost (for example thermal generation cost).
+"""
 const calc_shutdown_cost = ComponentTimedMetric(;
     name = "ShutdownCost",
     eval_fn = (
@@ -302,10 +375,29 @@ _has_startup_shutdown_costs(::PSY.MarketBidCost) = true
 _has_startup_shutdown_costs(component::PSY.Component) =
     _has_startup_shutdown_costs(PSY.get_operation_cost(component))
 
-"Calculate the production cost of the specified `ComponentSelector`, which includes the startup and shutdown costs if they are defined"
+"""
+Alias of [`calc_production_cost`](@ref) (production-cost expression only).
+
+!!! warning
+
+    Despite the name, this does **not** add [`calc_startup_cost`](@ref) or
+    [`calc_shutdown_cost`](@ref). Sum those metrics separately if you need a full commitment
+    cost.
+"""
 const calc_total_cost = calc_production_cost
 
-"Calculate the number of discharge cycles a storage device has gone through in the time period"
+"""
+Approximate discharge cycles for storage in the `ComponentSelector`.
+
+Each time step contributes
+``\\mathrm{ActivePowerOutVariable} / (\\mathrm{capacity} \\cdot (\\mathrm{soc\\_max} -
+\\mathrm{soc\\_min}))``,
+using [`PowerSimulations.ActivePowerOutVariable`](@extref),
+`PowerSystems.get_storage_capacity`, and `PowerSystems.get_storage_level_limits`.
+One cycle means discharging from maximum to minimum state of charge (not from full to empty
+unless those limits are 1 and 0). Summing in time accumulates fractional cycles over the
+horizon.
+"""
 const calc_discharge_cycles = ComponentTimedMetric(;
     name = "DischargeCycles",
     # NOTE: here, we define one "cycle" as a discharge from the maximum state of charge to
