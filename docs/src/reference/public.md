@@ -2,9 +2,8 @@
 
 ## `ComponentSelector`
 
-PowerAnalytics depends heavily on the `ComponentSelector` feature of PowerSystems.jl.
-`ComponentSelector` documentation can be found
-[here](https://sienna-platform.github.io/PowerSystems.jl/stable/api/public/#InfrastructureSystems.ComponentSelector).
+PowerAnalytics depends heavily on [`ComponentSelector`](@extref PowerSystems InfrastructureSystems.ComponentSelector),
+an InfrastructureSystems type exported by PowerSystems.
 PowerAnalytics provides some [built-in selectors](@ref Built-in-Selectors), but much of the
 power of PowerAnalytics comes from the ability to operate on custom `ComponentSelector`s.
 
