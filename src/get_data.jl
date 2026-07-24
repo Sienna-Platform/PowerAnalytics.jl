@@ -1,7 +1,18 @@
+"""
+Container for time-aligned result tables used by post-processing and plotting.
 
-# the fundamental struct for plotting
+Each entry in `data` is a wide `DataFrame` of component (or
+category) columns for one results key. `time` holds the timestamps shared by those
+tables. Constructed by [`get_generation_data`](@ref), [`get_load_data`](@ref), and
+[`get_service_data`](@ref).
+
+# Fields
+$(TYPEDFIELDS)
+"""
 struct PowerData
+    "Map from results-key symbol to a wide DataFrame of values (no required `DateTime` column)."
     data::Dict{Symbol, DataFrames.DataFrame}
+    "Timestamps aligned with the rows of each DataFrame in `data`."
     time::Union{StepRange{Dates.DateTime}, Vector{Dates.DateTime}}
 end
 
@@ -211,6 +222,11 @@ function get_service_parameter_names(
     return filter_keys
 end
 
+"""
+Return a copy of `df` with the `DateTime` column removed when present.
+
+Useful before arithmetic or aggregation on result tables that still carry timestamps.
+"""
 no_datetime(df::DataFrames.DataFrame) = df[:, propertynames(df) .!== :DateTime]
 
 function add_fixed_parameters!(
@@ -357,6 +373,32 @@ function filter_results!(
     results::R,
 ) where {R <: IS.Results} end
 
+"""
+Extract generation (and optional storage/source) time series from simulation `results`
+into a [`PowerData`](@ref).
+
+Reads active-power variables (and related parameters / aux variables) for injectors,
+optionally including storage, sources, and curtailment columns.
+
+# Arguments
+ - `results`: an [`InfrastructureSystems.Results`](@extref) object (e.g. from PowerSimulations)
+
+# Keyword Arguments
+ - `filter_func::Union{Function, Nothing} = nothing`: component filter applied when
+   selecting columns; `nothing` keeps all available components
+ - `initial_time` / `start_time`: start of the realized window (default: results metadata)
+ - `horizon` / `len`: number of time steps to read
+ - `variable_keys`, `parameter_keys`, `aux_variable_keys`: override which optimization
+   container keys are considered
+ - `curtailment::Bool = true`: include curtailment columns when parameters allow
+ - `storage::Bool = true`: include storage injection variables
+ - `sources::Bool = true`: include source injection variables and parameters
+
+# Returns
+ - [`PowerData`](@ref) with generation-related tables and aligned timestamps
+
+See also [`get_load_data`](@ref), [`get_service_data`](@ref), [`categorize_data`](@ref).
+"""
 function get_generation_data(
     results::R;
     # aggregation::Union{
@@ -452,6 +494,25 @@ function get_generation_data(
     return PowerData(variables, timestamps)
 end
 
+"""
+Extract load time series from simulation `results` into a [`PowerData`](@ref).
+
+# Arguments
+ - `results`: an [`InfrastructureSystems.Results`](@extref) object
+
+# Keyword Arguments
+ - `filter_func::Union{Function, Nothing} = nothing`: component filter for columns
+ - `initial_time` / `start_time`: start of the realized window
+ - `horizon` / `len`: number of time steps to read
+ - `variable_keys`, `parameter_keys`, `aux_variable_keys`: override optimization
+   container keys considered for load
+
+# Returns
+ - [`PowerData`](@ref) with load tables and aligned timestamps
+
+See also [`get_load_data`](@ref) for a [`PowerSystems.System`](@extref),
+[`get_generation_data`](@ref).
+"""
 function get_load_data(
     results::R;
     filter_func::Union{Function, Nothing} = nothing,
@@ -522,6 +583,28 @@ end
 get_base_power(system::PSY.System) = PSY.get_base_power(system)
 get_base_power(results::IS.Results) = IS.get_base_power(results)
 
+"""
+Build load forecast [`PowerData`](@ref) from a [`PowerSystems.System`](@extref)
+(no simulation results required).
+
+Uses deterministic `max_active_power` time series on static loads, grouped by
+`aggregation`.
+
+# Arguments
+ - `system`: system containing load components and forecasts
+
+# Keyword Arguments
+ - `aggregation`: grouping type — `StaticLoad` (default), `ACBus`, `System`, or an
+   `AggregationTopology` subtype (e.g. `Area`)
+ - `horizon`: forecast horizon (period or step count; default: system forecast horizon)
+ - `initial_time`: forecast window start (default: system forecast initial timestamp)
+
+# Returns
+ - [`PowerData`](@ref) whose `data` keys are aggregation names and whose values are
+   load forecast tables
+
+See also [`get_load_data`](@ref) for [`InfrastructureSystems.Results`](@extref).
+"""
 function get_load_data(
     system::PSY.System;
     aggregation::Union{
@@ -586,6 +669,23 @@ function get_load_data(
     return PowerData(parameters, time_range)
 end
 
+"""
+Extract ancillary-service variable time series from `results` into a [`PowerData`](@ref).
+
+# Arguments
+ - `results`: an [`InfrastructureSystems.Results`](@extref) object
+
+# Keyword Arguments
+ - `filter_func::Union{Function, Nothing} = nothing`: component filter for columns
+ - `initial_time` / `start_time`: start of the realized window
+ - `horizon` / `len`: number of time steps to read
+ - `variable_keys`: override which service variable keys are read
+
+# Returns
+ - [`PowerData`](@ref) with service tables and aligned timestamps
+
+See also [`get_generation_data`](@ref), [`get_load_data`](@ref).
+"""
 function get_service_data(
     results::R;
     filter_func::Union{Function, Nothing} = nothing,
@@ -615,14 +715,23 @@ end
 #### result combination and aggregation ####
 
 """
-aggregates and combines data into single DataFrame
+Aggregate each category DataFrame in `data` to a single column and horizontally
+combine them into one DataFrame.
+
+# Arguments
+ - `data`: dictionary of category name => wide DataFrame (as in [`PowerData`](@ref).data)
+
+# Keyword Arguments
+ - `names`: category order (default: `keys(data)`)
+ - `aggregate`: row-wise aggregator applied to each matrix (default: sum over columns)
 
 # Example
 
 ```julia
-PG.combine_categories(gen_uc.data)
+combine_categories(gen_uc.data)
 ```
 
+See also [`categorize_data`](@ref).
 """
 function combine_categories(
     data::Union{Dict{Symbol, DataFrames.DataFrame}, Dict{String, DataFrames.DataFrame}};
@@ -646,16 +755,29 @@ function combine_categories(
 end
 
 """
-Re-categorizes data according to an aggregation dictionary
-* makes no guarantee of complete data collection *
+Re-group [`PowerData`](@ref) tables by an aggregation dictionary (e.g. fuel categories).
+
+Makes no guarantee of complete data collection for components missing from
+`aggregation`.
+
+# Arguments
+ - `data`: dictionary of variable-key symbol => wide DataFrame (typically
+   `get_generation_data(...).data`)
+ - `aggregation`: map from category name to generator `(type, name)` pairs, as from
+   [`make_fuel_dictionary`](@ref)
+
+# Keyword Arguments
+ - `curtailment::Bool = true`: include curtailment columns when present
+ - `slacks::Bool = true`: include slack variables when present
 
 # Example
 
 ```julia
-aggregation = PA.make_fuel_dictionary(results_uc.system)
-categorize_data(gen_uc.data, aggregation)
+aggregation = make_fuel_dictionary(sys)
+categorize_data(gen.data, aggregation)
 ```
 
+See also [`combine_categories`](@ref), [`make_fuel_dictionary`](@ref).
 """
 function categorize_data(
     data::Dict{Symbol, DataFrames.DataFrame},

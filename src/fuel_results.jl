@@ -65,26 +65,26 @@ function get_generator_category(
 end
 
 """
-    generators = make_fuel_dictionary(system::PSY.System, mapping::Dict{NamedTuple, String})
-
-This function makes a dictionary of fuel type and the generators associated.
+Build a dictionary from fuel (or custom) category name to generator `(type, name)`
+pairs for `sys`, using `mapping` of `(gentype, fuel, primemover, …)` keys to category
+labels.
 
 # Arguments
-
-  - `sys::PSY.System`: the system that is used to create the results
-  - `results::IS.Results`: results
+ - `sys`: [`PowerSystems.System`](@extref) whose generators are categorized
+ - `mapping`: map from generator attribute `NamedTuple` to category `String`
 
 # Keyword Arguments
-
-  - `categories::Dict{String, NamedTuple}`: if stacking by a different category is desired
+ - `filter_func`: additional component filter (combined with availability)
+ - `generator_mapping_file`: used only by the one-argument method that loads mapping from YAML
 
 # Examples
 
 ```julia
-results = solve_op_model!(OpModel)
 generators = make_fuel_dictionary(sys)
+generators = make_fuel_dictionary(sys, mapping)
 ```
 
+See also [`categorize_data`](@ref).
 """
 function make_fuel_dictionary(
     sys::PSY.System,
@@ -164,6 +164,12 @@ function make_fuel_dictionary(
     return gen_categories
 end
 
+"""
+Build a fuel-category dictionary for `sys` using the default generator mapping file
+(or `generator_mapping_file` from `kwargs`).
+
+See [`make_fuel_dictionary`](@ref) with an explicit `mapping` argument.
+"""
 function make_fuel_dictionary(sys::PSY.System; kwargs...)
     mapping = get_generator_mapping(get(kwargs, :generator_mapping_file, nothing))
     return make_fuel_dictionary(sys, mapping; kwargs...)

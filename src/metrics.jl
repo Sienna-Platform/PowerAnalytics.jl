@@ -163,9 +163,13 @@ struct NoResultError <: Exception
 end
 
 # Override these if you define Metric subtypes with different implementations
+"""Return the name string of metric `m`."""
 get_name(m::Metric) = m.name
+"""Return the evaluation function of metric `m`."""
 get_eval_fn(m::Metric) = m.eval_fn
+"""Return the time aggregation function of timed metric `m`."""
 get_time_agg_fn(m::TimedMetric) = m.time_agg_fn
+"""Return the component aggregation function of component-timed metric `m`."""
 get_component_agg_fn(m::ComponentTimedMetric) = m.component_agg_fn
 get_time_meta_agg_fn(m::TimedMetric) = m.time_meta_agg_fn
 get_component_meta_agg_fn(m::ComponentTimedMetric) = m.component_meta_agg_fn
