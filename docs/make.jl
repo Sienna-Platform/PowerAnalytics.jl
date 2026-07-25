@@ -27,9 +27,14 @@ pages = OrderedDict(
     "Tutorials" => Any[
         "Simulation Scenarios Analysis" => "tutorials/generated_PA_workflow_tutorial.md",
     ],
-    # TODO flesh out the how-tos, explanation
-    # "How to..." => Any[#="stub" => "how_to_guides/stub.md"=#],
-    # "Explanation" => Any[#="stub" => "explanation/stub.md"=#],
+    "How to..." => Any[
+        "How to group generation by fuel or technology category" => "how_to_guides/how_to_group_generation_by_fuel.md",
+        "How to define a custom metric" => "how_to_guides/how_to_define_a_custom_metric.md",
+    ],
+    "Explanation" => Any[
+        "How `PowerAnalytics` thinks" => "explanation/metrics_and_component_selectors.md",
+        "Choosing built-in metrics" => "explanation/choosing_built_in_metrics.md",
+    ],
     "Reference" => Any[
         "Public API" => "reference/public.md",
         "Developers" => ["Developer Guidelines" => "reference/developer_guidelines.md",

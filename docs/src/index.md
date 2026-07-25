@@ -2,9 +2,10 @@
 
 ## Overview
 
-PowerAnalytics.jl is a Julia package designed to support power system simulation results analysis. It relies on results generated from [`PowerSimulations.jl`](https://sienna-platform.github.io/PowerSimulations.jl/stable/) and data structures defined in [`PowerSystems.jl`](https://sienna-platform.github.io/PowerSystems.jl/stable/). PowerAnalytics also provides the data collection, aggregation, and subsetting for [`PowerGraphics.jl`](https://sienna-platform.github.io/PowerGraphics.jl/stable/).
+PowerAnalytics.jl is a Julia package designed to support power system simulation results analysis. It relies on results generated from [`PowerSimulations.jl`](https://sienna-platform.github.io/PowerSimulations.jl/stable/) and data structures defined in [`PowerSystems.jl`](https://sienna-platform.github.io/PowerSystems.jl/stable/). PowerAnalytics also provides the data collection, aggregation, and subsetting for
+[PowerGraphics.jl](https://sienna-platform.github.io/PowerGraphics.jl/stable/).
 
-The how-to and explanation sections of the documentation are still under construction. See the [Simulation Scenarios Analysis](@ref Scenarios_PA_tutorial) tutorial and the [public API reference](reference/public.md). PowerAnalytics depends heavily on [`ComponentSelector`](@extref PowerSystems InfrastructureSystems.ComponentSelector), an InfrastructureSystems type exported by PowerSystems.
+See the [Simulation Scenarios Analysis](@ref Scenarios_PA_tutorial) tutorial, the how-to and explanation sections, and the [public API reference](reference/public.md). PowerAnalytics depends heavily on [`ComponentSelector`](@extref PowerSystems InfrastructureSystems.ComponentSelector), an InfrastructureSystems type exported by PowerSystems.
 
 ## Installation
 
