@@ -1,4 +1,4 @@
-# [How to group generator categories](@id group_generation_by_fuel)
+# [How to group generation by category](@id group_generation_by_fuel)
 
 ```@meta
 CurrentModule = PowerAnalytics
@@ -49,13 +49,16 @@ Use [`parse_injector_categories`](@ref) when you want every top-level category i
 including those listed under `__META.non_generators`. See
 [`parse_generator_mapping_file`](@ref) for the full parse (selectors plus metadata).
 
-YAML entries match on `gentype`, `primemover`, and `fuel` (PowerSystems enums). Category
+YAML entries match on `gentype` (a [`PowerSystems.Component`](@extref) type name),
+`primemover`
+([`PowerSystems.PrimeMovers`](@extref PowerSystems.PrimeMoversModule.PrimeMovers)), and
+`fuel`
+([`PowerSystems.ThermalFuels`](@extref PowerSystems.ThermalFuelsModule.ThermalFuels)).
+Category
 names should stay consistent with any downstream color palettes (for example
-[`PowerGraphics.plot_fuel`](@extref)).
+[`PowerGraphics.load_palette`](@extref)).
 
 ## Related
 
   - Mental model: [Metrics and ComponentSelectors](@ref metrics_and_selectors)
-  - Legacy PowerData path for stacked fuel plots:
-    [How to build fuel-stacked generation data for plotting](@ref fuel_stacked_generation_data)
   - Selector reference: [Built-in Selectors](@ref Built-in-Selectors)

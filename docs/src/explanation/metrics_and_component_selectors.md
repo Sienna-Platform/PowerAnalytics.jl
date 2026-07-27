@@ -62,7 +62,7 @@ without rewriting the evaluation function is the job of [`rebuild_metric`](@ref)
 existing metrics with an elementwise function is the job of [`compose_metrics`](@ref).
 
 For task-oriented recipes, see [How to define a custom metric](@ref define_custom_metric)
-and [How to group generation by fuel or technology category](@ref group_generation_by_fuel).
+and [How to group generation by category](@ref group_generation_by_fuel).
 For formulas and caveats on specific built-ins, see
 [Choosing built-in metrics](@ref choosing_built_in_metrics) and the
 [Built-in Metrics](@ref Built-in-Metrics) reference.

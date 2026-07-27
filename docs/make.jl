@@ -29,7 +29,7 @@ pages = OrderedDict(
         "Simulation Scenarios Analysis" => "tutorials/generated_PA_workflow_tutorial.md",
     ],
     "How to..." => Any[
-        "How to group generation by fuel or technology category" => "how_to_guides/how_to_group_generation_by_fuel.md",
+        "How to group generation by category" => "how_to_guides/how_to_group_generation_by_fuel.md",
         "How to define a custom metric" => "how_to_guides/how_to_define_a_custom_metric.md",
     ],
     "Explanation" => Any[
