@@ -40,10 +40,10 @@ System-wide and results-wide metrics omit the selector. Examples:
 
 ## Timed versus timeless
 
-| Kind | Role | Typical output |
-|:-----|:-----|:---------------|
-| [`TimedMetric`](@ref) | Values indexed by simulation time | `DataFrame` with a `DateTime` column |
-| [`TimelessMetric`](@ref) | One summary per results object | Scalar (or one-row frame) |
+| Kind                     | Role                              | Typical output                       |
+|:------------------------ |:--------------------------------- |:------------------------------------ |
+| [`TimedMetric`](@ref)    | Values indexed by simulation time | `DataFrame` with a `DateTime` column |
+| [`TimelessMetric`](@ref) | One summary per results object    | Scalar (or one-row frame)            |
 
 Most built-ins under [`PowerAnalytics.Metrics`](@ref) are timed and component-scoped
 ([`ComponentTimedMetric`](@ref)). Optimizer statistics such as objective value and solve
