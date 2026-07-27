@@ -16,7 +16,8 @@ links = InterLinks(
     "PowerSystems" => "https://sienna-platform.github.io/PowerSystems.jl/stable/",
     "PowerSimulations" => "https://sienna-platform.github.io/PowerSimulations.jl/stable/",
     "StorageSystemsSimulations" => "https://sienna-platform.github.io/StorageSystemsSimulations.jl/stable/",
-    "HydroPowerSimulations" => "https://sienna-platform.github.io/HydroPowerSimulations.jl/dev/",
+    "HydroPowerSimulations" => "https://sienna-platform.github.io/HydroPowerSimulations.jl/stable/",
+    "PowerGraphics" => "https://sienna-platform.github.io/PowerGraphics.jl/stable/",
 )
 
 include(joinpath(@__DIR__, "make_tutorials.jl"))
