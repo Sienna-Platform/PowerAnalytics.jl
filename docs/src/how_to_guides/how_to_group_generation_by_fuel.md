@@ -35,7 +35,7 @@ keys(generator_categories)
 
 ## Point at a custom mapping file
 
-Package defaults load
+By default, the package loads
 [`deps/generator_mapping.yaml`](https://github.com/Sienna-Platform/PowerAnalytics.jl/blob/main/deps/generator_mapping.yaml)
 shipped with PowerAnalytics. To build selectors from your own YAML:
 
