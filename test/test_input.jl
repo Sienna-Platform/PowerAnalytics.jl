@@ -117,3 +117,54 @@ end
     # results_uc is a CopperPlate model with no branch flows; the result is empty but valid.
     @test PA.get_branch_data(results_uc) isa PA.PowerData
 end
+
+@testset "Test get_branch_data with AC power flow in the loop" begin
+    # this exercises the aux-variable-only codepath of `get_branch_data`
+    sys = PSB.build_system(PSB.PSISystems, "5_bus_hydro_ed_sys")
+    template = ProblemTemplate(
+        NetworkModel(
+            CopperPlatePowerModel;
+            use_slacks = true,
+            power_flow_evaluation = PSI.PFS.ACPolarPowerFlow(),
+        ),
+    )
+    set_device_model!(template, ThermalStandard, ThermalBasicDispatch)
+    set_device_model!(template, PowerLoad, StaticPowerLoad)
+    set_device_model!(template, HydroDispatch, FixedOutput)
+    set_device_model!(template, HydroTurbine, HydroTurbineEnergyDispatch)
+    set_device_model!(template, HydroReservoir, HydroEnergyModelReservoir)
+
+    model = DecisionModel(
+        template,
+        sys;
+        optimizer = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01),
+        horizon = Hour(2),
+    )
+    @test build!(model; output_dir = mktempdir(; cleanup = true)) ==
+          PSI.ModelBuildStatus.BUILT
+    @test solve!(model) == PSI.RunStatus.SUCCESSFULLY_FINALIZED
+    ac_results = OptimizationProblemResults(model)
+
+    @test isempty(PA.get_branch_variable_keys(ac_results))
+    aux_keys = PA.get_branch_aux_variable_keys(ac_results)
+    @test !isempty(aux_keys)
+    @test PSI.PowerFlowBranchActivePowerFromTo in PSI.get_entry_type.(aux_keys)
+
+    branch_data = PA.get_branch_data(ac_results)
+    @test branch_data isa PA.PowerData
+    # NOTE. written to current behavior. Only one aux variable per branch type is kept,
+    # so to-from discarded.
+    from_to_keys =
+        filter(k -> PSI.get_entry_type(k) == PSI.PowerFlowBranchActivePowerFromTo, aux_keys)
+    @test Set(keys(branch_data.data)) ==
+          Set(Symbol.(PSI.encode_keys_as_strings(from_to_keys)))
+
+    branch_names = PSY.get_name.(PSY.get_components(PSY.ACBranch, sys))
+    for df in values(branch_data.data)
+        @test "DateTime" in names(df)
+        @test DataFrames.nrow(df) > 0
+        mapped = setdiff(names(df), ["DateTime"])
+        @test !isempty(mapped)
+        @test all(in(branch_names), mapped)
+    end
+end
