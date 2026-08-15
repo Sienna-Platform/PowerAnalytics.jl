@@ -65,7 +65,7 @@ Biopower:
   - {gentype: Any, primemover: null, fuel: TIREDERIVED_FUEL}
   - {gentype: Any, primemover: null, fuel: OTHER_BIOMASS_LIQUIDS}
   - {gentype: Any, primemover: null, fuel: OTHER_BIOMASS_SOLIDS}
-  - {gentype: Any, primemover: null, fuel: OTHEHR_BIOMASS_GAS}
+  - {gentype: Any, primemover: null, fuel: OTHER_BIOMASS_GAS}
 CSP:
   - {gentype: Any, primemover: CP, fuel: null}
 Load:

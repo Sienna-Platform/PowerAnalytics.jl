@@ -29,10 +29,10 @@ function parse_fuel_category(
     gen_type = typeintersect(gen_type, root_type)
 
     pm = get(category_spec, "primemover", nothing)
-    isnothing(pm) || (pm = PSY.parse_enum_mapping(PSY.PrimeMovers, pm))
+    isnothing(pm) || (pm = PSY.get_enum_value(PSY.PrimeMovers, pm))
 
     fc = get(category_spec, "fuel", nothing)
-    isnothing(fc) || (fc = PSY.parse_enum_mapping(PSY.ThermalFuels, fc))
+    isnothing(fc) || (fc = PSY.get_enum_value(PSY.ThermalFuels, fc))
 
     return gen_type, pm, fc
 end

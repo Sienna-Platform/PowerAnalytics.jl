@@ -15,7 +15,8 @@ cases, the user can create their own subtype that implements [`compute`](@ref).
 
 # Examples
 
-Given a [`PowerSimulations.SimulationProblemResults`](@extref) `results`:
+Given an `IS.Outputs` `outputs` — for example an
+`InfrastructureOptimizationModels.OptimizationProblemOutputs`:
 ```julia
 using PowerAnalytics.Metrics
 
@@ -57,7 +58,7 @@ A [`ComponentSelectorTimedMetric`](@ref) implemented by evaluating a function on
 # Arguments
 
   - `name::String`: the name of the `Metric`
-  - `eval_fn`: a function with signature `(::IS.Results, ::Component;
+  - `eval_fn`: a function with signature `(::IS.Outputs, ::Component;
     start_time::Union{Nothing, DateTime}, len::Union{Int, Nothing})` that returns a
     `DataFrame` representing the results for that `Component`
   - `component_agg_fn`: optional, a function to aggregate results between
@@ -96,7 +97,7 @@ A [`ComponentSelectorTimedMetric`](@ref) implemented without drilling down to th
 # Arguments
 
   - `name::String`: the name of the `Metric`
-  - `eval_fn`: a function with signature `(::IS.Results, ::Union{ComponentSelector,
+  - `eval_fn`: a function with signature `(::IS.Outputs, ::Union{ComponentSelector,
     Component}; start_time::Union{Nothing, DateTime}, len::Union{Int, Nothing})` that
     returns a `DataFrame` representing the results for that `Component`
   - `time_agg_fn`: optional, a function to aggregate results across time, defaults to
@@ -121,7 +122,7 @@ PowerSystems.System) embedded in a set of results.
 # Arguments
 
  - `name::String`: the name of the `Metric`
- - `eval_fn`: a function with signature `(::IS.Results; start_time::Union{Nothing,
+ - `eval_fn`: a function with signature `(::IS.Outputs; start_time::Union{Nothing,
    DateTime}, len::Union{Int, Nothing})` that returns a `DataFrame` representing the results
  - `time_agg_fn`: optional, a function to aggregate results across time, defaults to
    [`sum`](@extref Base.sum)
@@ -136,29 +137,29 @@ PowerSystems.System) embedded in a set of results.
 end
 
 """
-    ResultsTimelessMetric(name::String, eval_fn::Function)
-    ResultsTimelessMetric(; name, eval_fn)
+    OutputsTimelessMetric(name::String, eval_fn::Function)
+    OutputsTimelessMetric(; name, eval_fn)
 
-A [`TimelessMetric`](@ref) with a single value per `IS.Results` instance.
+A [`TimelessMetric`](@ref) with a single value per `IS.Outputs` instance.
 
 # Arguments
 
   - `name::String`: the name of the `Metric`
-  - `eval_fn`: a function with signature `(::IS.Results,)` that returns a `DataFrame`
+  - `eval_fn`: a function with signature `(::IS.Outputs,)` that returns a `DataFrame`
     representing the results
 """
-@kwdef struct ResultsTimelessMetric <: TimelessMetric
+@kwdef struct OutputsTimelessMetric <: TimelessMetric
     name::String
     eval_fn::Function
 end
 
 """
-    PowerAnalytics.NoResultError(msg::AbstractString)
+    PowerAnalytics.NoOutputError(msg::AbstractString)
 
 Signifies that the metric does not have a result for the [`Component`](@extref
 PowerSystems.Component)/`ComponentSelector`/etc. on which it is being called.
 """
-struct NoResultError <: Exception
+struct NoOutputError <: Exception
     msg::AbstractString
 end
 
@@ -225,7 +226,7 @@ end
 
 # Helper function to call eval_fn and set the appropriate metadata
 function _compute_component_timed_helper(metric::ComponentSelectorTimedMetric,
-    results::IS.Results,
+    results::IS.Outputs,
     comp::Union{Component, ComponentSelector};
     kwargs...)
     val = get_eval_fn(metric)(results, comp; kwargs...)
@@ -256,7 +257,7 @@ of the existing methods, below. Custom `Metric` subtypes must implement this fun
 function compute end  # For the unified docstring
 
 """
-Like [`compute(metric::ComponentTimedMetric, results::IS.Results,
+Like [`compute(metric::ComponentTimedMetric, results::IS.Outputs,
 selector::ComponentSelector; kwargs...)`](@ref) but for [`Component`](@extref
 PowerSystems.Component)s rather than `ComponentSelector`s, used in the implementation of
 that method. Compute the given metric on the given component within the given set of
@@ -265,7 +266,7 @@ component's name.
 
 # Arguments
  - `metric::ComponentTimedMetric`: the metric to compute
- - `results::IS.Results`: the results from which to fetch data
+ - `results::IS.Outputs`: the results from which to fetch data
  - `comp::Component`: the component on which to compute the metric
  - `start_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
    series should begin
@@ -273,7 +274,7 @@ component's name.
 
 See also: [`compute`](@ref) unified function documentation
 """
-compute(metric::ComponentTimedMetric, results::IS.Results, comp::Component; kwargs...) =
+compute(metric::ComponentTimedMetric, results::IS.Outputs, comp::Component; kwargs...) =
     _compute_component_timed_helper(metric, results, comp; kwargs...)
 
 """
@@ -284,7 +285,7 @@ available.
 
 # Arguments
  - `metric::CustomTimedMetric`: the metric to compute
- - `results::IS.Results`: the results from which to fetch data
+ - `results::IS.Outputs`: the results from which to fetch data
  - `comp::Component`: the component on which to compute the metric
  - `start_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
    series should begin
@@ -292,7 +293,7 @@ available.
 
 See also: [`compute`](@ref) unified function documentation
 """
-compute(metric::CustomTimedMetric, results::IS.Results,
+compute(metric::CustomTimedMetric, results::IS.Outputs,
     comp::Union{Component, ComponentSelector};
     kwargs...) =
     _compute_component_timed_helper(metric, results, comp; kwargs...)
@@ -304,32 +305,32 @@ a `DataFrame` with a `DateTime` column and a data column.
 
 # Arguments
  - `metric::SystemTimedMetric`: the metric to compute
- - `results::IS.Results`: the results from which to fetch data
+ - `results::IS.Outputs`: the results from which to fetch data
  - `start_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
    series should begin
  - `len::Union{Int, Nothing} = nothing`: the number of steps in the resulting time series
 
 See also: [`compute`](@ref) unified function documentation
 """
-function compute(metric::SystemTimedMetric, results::IS.Results; kwargs...)
+function compute(metric::SystemTimedMetric, results::IS.Outputs; kwargs...)
     val = get_eval_fn(metric)(results; kwargs...)
     _compute_meta_timed!(val, metric, results)
     return val
 end
 
 """
-[`compute`](@ref) method for [`ResultsTimelessMetric`](@ref). Compute the given metric on
+[`compute`](@ref) method for [`OutputsTimelessMetric`](@ref). Compute the given metric on
 the given set of results, returning a `DataFrame` with a single cell. Exclude components
 marked as not available.
 
 # Arguments
- - `metric::ResultsTimelessMetric`: the metric to compute
- - `results::IS.Results`: the results from which to fetch data
+ - `metric::OutputsTimelessMetric`: the metric to compute
+ - `results::IS.Outputs`: the results from which to fetch data
 
 See also: [`compute`](@ref) unified function documentation
 """
-function compute(metric::ResultsTimelessMetric, results::IS.Results)
-    val = DataFrame(RESULTS_COL => [get_eval_fn(metric)(results)])
+function compute(metric::OutputsTimelessMetric, results::IS.Outputs)
+    val = DataFrame(OUTPUTS_COL => [get_eval_fn(metric)(results)])
     _compute_meta_generic!(val, metric, results)
     return val
 end
@@ -337,26 +338,26 @@ end
 # TODO test link
 """
 Convenience method that ignores the `selector` argument and redirects to
-[`compute(metric::ResultsTimelessMetric, results::IS.Results; kwargs...)`](@ref) for the
+[`compute(metric::OutputsTimelessMetric, results::IS.Outputs; kwargs...)`](@ref) for the
 purposes of [`compute_all`](@ref).
 
 See also: [`compute`](@ref) unified function documentation
 """
-compute(metric::ResultsTimelessMetric, results::IS.Results, selector::Nothing) =
+compute(metric::OutputsTimelessMetric, results::IS.Outputs, selector::Nothing) =
     compute(metric, results)
 
 # TODO test link
 """
 Convenience method that ignores the `selector` argument and redirects to
-[`compute(metric::SystemTimedMetric, results::IS.Results; kwargs...)`](@ref) for the
+[`compute(metric::SystemTimedMetric, results::IS.Outputs; kwargs...)`](@ref) for the
 purposes of [`compute_all`](@ref).
 
 See also: [`compute`](@ref) unified function documentation
 """
-compute(metric::SystemTimedMetric, results::IS.Results, selector::Nothing; kwargs...) =
+compute(metric::SystemTimedMetric, results::IS.Outputs, selector::Nothing; kwargs...) =
     compute(metric, results; kwargs...)
 
-function _compute_one(metric::ComponentTimedMetric, results::IS.Results,
+function _compute_one(metric::ComponentTimedMetric, results::IS.Outputs,
     selector::ComponentSelector; kwargs...)
     # TODO incorporate allow_missing
     agg_fn = get_component_agg_fn(metric)
@@ -400,7 +401,7 @@ marked as not available.
 
 # Arguments
  - `metric::ComponentTimedMetric`: the metric to compute
- - `results::IS.Results`: the results from which to fetch data
+ - `results::IS.Outputs`: the results from which to fetch data
  - `selector::ComponentSelector`: the `ComponentSelector` on whose subselectors to compute
    the metric
  - `start_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
@@ -409,7 +410,7 @@ marked as not available.
 
 See also: [`compute`](@ref) unified function documentation
 """
-function compute(metric::ComponentTimedMetric, results::IS.Results,
+function compute(metric::ComponentTimedMetric, results::IS.Outputs,
     selector::ComponentSelector; kwargs...)
     subents = get_groups(selector, results)
     subcomputations = [_compute_one(metric, results, sub; kwargs...) for sub in subents]
@@ -417,9 +418,9 @@ function compute(metric::ComponentTimedMetric, results::IS.Results,
 end
 
 # COMPUTE_ALL()
-_is_single_group(selector::ComponentSelector, results::IS.Results) =
+_is_single_group(selector::ComponentSelector, results::IS.Outputs) =
     length(get_groups(selector, results)) == 1
-_is_single_group(selector, results::IS.Results) = true
+_is_single_group(selector, results::IS.Outputs) = true
 
 # The core of compute_all, shared between the timed and timeless versions
 function _common_compute_all(results, metrics, selectors, col_names; kwargs)
@@ -466,7 +467,7 @@ the results in a `DataFrame` with a single `DateTime` column. All selectors must
 exactly one group.
 
 # Arguments
- - `results::IS.Results`: the results from which to fetch data
+ - `results::IS.Outputs`: the results from which to fetch data
  - `metrics::Vector{<:TimedMetric}`: the metrics to compute
  - `selectors`: either a scalar or vector of `Nothing`/[`Component`](@extref
    PowerSystems.Component)/`ComponentSelector`: the selectors on which to compute the
@@ -494,7 +495,7 @@ See also: [`compute_all` tuple-based interface](@ref compute_all(
     results::InfrastructureSystems.Results, computations::Tuple{Union{TimedMetric,
     TimelessMetric}, Any, Any}...; kwargs... ))
 """
-compute_all(results::IS.Results,
+compute_all(results::IS.Outputs,
     metrics::Vector{<:TimedMetric},
     selectors::Union{Nothing, Component, ComponentSelector, Vector} = nothing,
     col_names::Union{Nothing, Vector{<:Union{Nothing, AbstractString}}} = nothing;
@@ -507,7 +508,7 @@ col_name)` tuple in `zip(metrics, selectors, col_names)`, call [`compute`](@ref)
 the results in a `DataFrame`. All selectors must yield exactly one group.
 
 # Arguments
- - `results::IS.Results`: the results from which to fetch data
+ - `results::IS.Outputs`: the results from which to fetch data
  - `metrics::Vector{<:TimelessMetric}`: the metrics to compute
  - `selectors`: either a scalar or vector of `Nothing`/[`Component`](@extref
    PowerSystems.Component)/`ComponentSelector`: the selectors on which to compute the
@@ -535,7 +536,7 @@ See also: [`compute_all` tuple-based interface](@ref compute_all(
     results::InfrastructureSystems.Results, computations::Tuple{Union{TimedMetric,
     TimelessMetric}, Any, Any}...; kwargs... ))
 """
-compute_all(results::IS.Results, metrics::Vector{<:TimelessMetric},
+compute_all(results::IS.Outputs, metrics::Vector{<:TimelessMetric},
     selectors::Union{Nothing, Component, ComponentSelector, Vector} = nothing,
     col_names::Union{Nothing, Vector{<:Union{Nothing, AbstractString}}} = nothing;
     kwargs...,
@@ -548,7 +549,7 @@ For convenience, a variant signature of [`compute_all`](@ref) where the metrics,
 and column names are specified as a list of tuples rather than three separate lists.
 
 # Arguments
- - `results::IS.Results`: the results from which to fetch data
+ - `results::IS.Outputs`: the results from which to fetch data
  - `computations::(Tuple{<:T, Any, Any} where T <: Union{TimedMetric, TimelessMetric})...`:
    a list of the computations to perform, where each element is a `(metric, selector,
    col_name)` where `metric` is the metric to compute, `selector` is the `ComponentSelector`
@@ -577,7 +578,7 @@ compute_all(results,
 
 See also: [`compute_all` non-tuple-based interface](@ref compute_all)
 """
-compute_all(results::IS.Results, computations::ComputationTuple...; kwargs...) =
+compute_all(results::IS.Outputs, computations::ComputationTuple...; kwargs...) =
     compute_all(results, collect.(zip(computations...))...; kwargs...)
 
 # HIGHER-LEVEL METRIC FUNCTIONS
@@ -624,7 +625,7 @@ compose_metrics(
     reduce_fn,
     metrics::ComponentSelectorTimedMetric...,
 ) = CustomTimedMetric(; name = name,
-    eval_fn = (res::IS.Results, sel::Union{Component, ComponentSelector}; kwargs...) ->
+    eval_fn = (res::IS.Outputs, sel::Union{Component, ComponentSelector}; kwargs...) ->
         _common_compose_metrics(
             res,
             sel,
@@ -640,7 +641,7 @@ compose_metrics(
     name::String,
     reduce_fn,
     metrics::SystemTimedMetric...) = SystemTimedMetric(; name = name,
-    eval_fn = (res::IS.Results; kwargs...) ->
+    eval_fn = (res::IS.Outputs; kwargs...) ->
         _common_compose_metrics(
             res,
             nothing,
@@ -651,19 +652,19 @@ compose_metrics(
         ),
 )
 
-"[`compose_metrics`](@ref) method for [`ResultsTimelessMetric`](@ref)."
+"[`compose_metrics`](@ref) method for [`OutputsTimelessMetric`](@ref)."
 compose_metrics(
     name::String,
     reduce_fn,
-    metrics::ResultsTimelessMetric...) = ResultsTimelessMetric(; name = name,
+    metrics::OutputsTimelessMetric...) = OutputsTimelessMetric(; name = name,
     eval_fn = (
-        res::IS.Results ->
+        res::IS.Outputs ->
             _common_compose_metrics(
                 res,
                 nothing,
                 reduce_fn,
                 metrics,
-                RESULTS_COL,
+                OUTPUTS_COL,
             )
     ),
 )
@@ -672,7 +673,7 @@ compose_metrics(
 component_selector_metric_from_system_metric(in_metric::SystemTimedMetric) =
     CustomTimedMetric(;
         name = get_name(in_metric),
-        eval_fn = (res::IS.Results, comp::Union{Component, ComponentSelector}; kwargs...) ->
+        eval_fn = (res::IS.Outputs, comp::Union{Component, ComponentSelector}; kwargs...) ->
             compute(in_metric, res; kwargs...))
 
 # This one only gets triggered when we have at least one ComponentSelectorTimedMetric *and*
@@ -693,8 +694,8 @@ end
 
 # FUNCTOR INTERFACE TO COMPUTE()
 (metric::ComponentSelectorTimedMetric)(selector::ComponentSelector,
-    results::IS.Results; kwargs...) =
+    results::IS.Outputs; kwargs...) =
     compute(metric, results, selector; kwargs...)
 
-(metric::Union{SystemTimedMetric, ResultsTimelessMetric})(results::IS.Results; kwargs...) =
+(metric::Union{SystemTimedMetric, OutputsTimelessMetric})(results::IS.Outputs; kwargs...) =
     compute(metric, results; kwargs...)

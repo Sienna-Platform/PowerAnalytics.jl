@@ -129,3 +129,6 @@ $RECYCLE.BIN/
 hooks
 settings.*.json
 settings.json
+
+# Lavish review artifacts (local review surfaces, regenerated on demand)
+.lavish/

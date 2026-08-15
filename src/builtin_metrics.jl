@@ -1,20 +1,29 @@
-"Convenience function to convert an `EntryType` to a function and make a `ComponentTimedMetric` from it"
-make_component_metric_from_entry(
-    name::String,
-    key::Type{<:EntryType},
-) =
-    ComponentTimedMetric(; name = name,
-        eval_fn = (res::IS.Results, comp::Component; kwargs...) ->
-            read_component_result(res, key, comp; kwargs...))
+"""
+Make a `ComponentTimedMetric` that reads one output entry per component.
 
-"Convenience function to convert a `SystemEntryType` to a function and make a `SystemTimedMetric` from it"
-make_system_metric_from_entry(
-    name::String,
-    key::Type{<:SystemEntryType},
-) =
-    SystemTimedMetric(; name = name,
-        eval_fn = (res::IS.Results; kwargs...) ->
-            read_system_result(res, key; kwargs...))
+`entry` is either an entry type PowerAnalytics can name directly or a [`VariableName`](@ref)
+/ [`AuxVariableName`](@ref) for entries defined in packages PowerAnalytics does not depend
+on.
+"""
+make_component_metric_from_entry(name::String, entry) =
+    ComponentTimedMetric(; name = name,
+        eval_fn = (out::IS.Outputs, comp::Component; kwargs...) ->
+            read_component_output(out, entry, comp; kwargs...))
+
+"""
+Make a `ComponentTimedMetric` from a `PSY.System`-keyed entry whose columns are the model's
+index set — reference buses under the bus-balance network models, `PSY.Area` under the area
+ones.
+
+The metric takes a `ComponentSelector` naming those index members; there is deliberately no
+default, because assuming `PSY.ACBus` would return silently wrong numbers under an
+`AreaBalanceNetworkModel`. The metric's `component_agg_fn` (`sum` by default) collapses the
+selected columns into the system-wide total.
+"""
+make_system_indexed_metric(name::String, entry) =
+    ComponentTimedMetric(; name = name,
+        eval_fn = (out::IS.Outputs, comp::Component; kwargs...) ->
+            read_system_indexed_output(out, entry, comp; kwargs...))
 
 """
 Compute the mean of `values` weighted by the corresponding entries of `weights`. Arguments
@@ -63,15 +72,15 @@ using PowerAnalytics.Metrics
 module Metrics
 import
     ..make_component_metric_from_entry,
-    ..make_system_metric_from_entry,
+    ..make_system_indexed_metric,
     ..compose_metrics,
     ..ComponentTimedMetric,
+    ..CustomTimedMetric,
     ..SystemTimedMetric,
-    ..ResultsTimelessMetric,
+    ..OutputsTimelessMetric,
     ..PSY,
-    ..PSI,
+    ..IOM,
     ..IS,
-    ..SystemTimedMetric,
     ..Component,
     ..compute,
     ..get_data_vec,
@@ -81,7 +90,9 @@ import
     ..weighted_mean,
     ..unweighted_sum,
     ..mean,
-    ..read_component_result,
+    ..read_component_output,
+    ..VariableName,
+    ..AuxVariableName,
     ..rebuild_selector,
     ..DataFrame,
     ..DATETIME_COL,
@@ -112,36 +123,44 @@ export calc_active_power,
     calc_sum_solve_time,
     calc_sum_bytes_alloc
 
+# Entries defined in PowerOperationsModels are named, not typed: PowerAnalytics reads the
+# outputs of power operations models without depending on the package that defines them.
+"Encoded key for the storage state-of-charge variable, defined in PowerOperationsModels."
+const ENERGY_VARIABLE_KEY = VariableName("EnergyVariable")
+
+"Encoded key for the system balance slack up variable, defined in PowerOperationsModels."
+const SYSTEM_SLACK_UP_KEY = VariableName("SystemBalanceSlackUp")
+
 # NOTE ActivePowerVariable is in units of megawatts per simulation time period, so it's
 # actually energy and it makes sense to sum it up.
 "Calculate the active power of the specified `ComponentSelector`"
 const calc_active_power = make_component_metric_from_entry(
     "ActivePower",
-    PSI.ActivePowerVariable,
+    IOM.ActivePowerVariable,
 )
 
 "Calculate the production cost expression of the specified `ComponentSelector`"
 const calc_production_cost = make_component_metric_from_entry(
     "ProductionCost",
-    PSI.ProductionCostExpression,
+    IOM.ProductionCostExpression,
 )
 
 "Calculate the active power input to the specified (storage) `ComponentSelector`"
 const calc_active_power_in = make_component_metric_from_entry(
     "ActivePowerIn",
-    PSI.ActivePowerInVariable,
+    IOM.ActivePowerInVariable,
 )
 
 "Calculate the active power output of the specified (storage) `ComponentSelector`"
 const calc_active_power_out = make_component_metric_from_entry(
     "ActivePowerOut",
-    PSI.ActivePowerOutVariable,
+    IOM.ActivePowerOutVariable,
 )
 
 "Calculate the energy stored in the specified (storage) `ComponentSelector`"
 const calc_stored_energy = make_component_metric_from_entry(
     "StoredEnergy",
-    PSI.EnergyVariable,
+    ENERGY_VARIABLE_KEY,
 )
 
 "Calculate the `ActivePowerIn` minus the `ActivePowerOut` of the specified (storage) `ComponentSelector`"
@@ -153,7 +172,7 @@ const calc_load_from_storage = compose_metrics(
 "Fetch the forecast active power of the specified `ComponentSelector`"
 const calc_active_power_forecast = make_component_metric_from_entry(
     "ActivePowerForecast",
-    PSI.ActivePowerTimeSeriesParameter,
+    IOM.ActivePowerTimeSeriesParameter,
 )
 
 "Fetch the forecast active load of the specified `ComponentSelector`"
@@ -171,7 +190,7 @@ const calc_load_forecast = ComponentTimedMetric(;
 "Fetch the forecast active load of all the [`ElectricLoad`](@extref PowerSystems.ElectricLoad) [`Component`](@extref PowerSystems.Component)s in the system"
 const calc_system_load_forecast = SystemTimedMetric(;
     name = "SystemLoadForecast",
-    eval_fn = (res::IS.Results; kwargs...) ->
+    eval_fn = (res::IS.Outputs; kwargs...) ->
         compute(calc_load_forecast, res,
             rebuild_selector(all_loads; groupby = :all); kwargs...),
 )
@@ -181,7 +200,7 @@ const calc_system_load_from_storage = let
     SystemTimedMetric(;
         name = "SystemLoadFromStorage",
         eval_fn = (
-            res::IS.Results; kwargs...
+            res::IS.Outputs; kwargs...
         ) ->
             compute(calc_load_from_storage, res,
                 rebuild_selector(all_storage; groupby = :all); kwargs...),
@@ -206,7 +225,7 @@ const calc_curtailment = compose_metrics(
 const calc_curtailment_frac = ComponentTimedMetric(;
     name = "CurtailmentFrac",
     eval_fn = (
-        (res::IS.Results, comp::Component; kwargs...
+        (res::IS.Outputs, comp::Component; kwargs...
         ) -> let
             result = compute(calc_curtailment, res, comp; kwargs...)
             power = collect(
@@ -230,7 +249,7 @@ _integration_denoms(res; kwargs...) =
 const calc_integration = ComponentTimedMetric(;
     name = "Integration",
     eval_fn = (
-        (res::IS.Results, comp::Component; kwargs...
+        (res::IS.Outputs, comp::Component; kwargs...
         ) -> let
             result = compute(calc_active_power, res, comp; kwargs...)
             # TODO does not check date alignment, maybe use hcat_timed_dfs
@@ -244,7 +263,7 @@ const calc_integration = ComponentTimedMetric(;
     ), component_agg_fn = unweighted_sum, time_agg_fn = weighted_mean,
     component_meta_agg_fn = mean,
     # We use a custom eval_zero to put the weight in there even when there are no components
-    eval_zero = (res::IS.Results; kwargs...) -> let
+    eval_zero = (res::IS.Outputs; kwargs...) -> let
         denoms = _integration_denoms(res; kwargs...)
         # TODO does not check date alignment, maybe use hcat_timed_dfs
         time_col = get_time_vec(first(denoms))
@@ -259,9 +278,9 @@ const calc_capacity_factor = ComponentTimedMetric(;
     name = "CapacityFactor",
     # (intentionally done with forecast to serve as sanity check -- solar capacity factor shouldn't exceed 20%, etc.)
     eval_fn = (
-        (res::IS.Results, comp::Component; kwargs...) -> let
+        (res::IS.Outputs, comp::Component; kwargs...) -> let
             result = compute(calc_active_power_forecast, res, comp; kwargs...)
-            rating = PSY.get_rating(comp)
+            rating = PSY.get_rating(comp, PSY.NU)
             get_data_vec(result) ./= rating
             set_agg_meta!(result, repeat([rating], length(get_data_vec(result))))
             return result
@@ -273,8 +292,8 @@ const calc_capacity_factor = ComponentTimedMetric(;
 const calc_startup_cost = ComponentTimedMetric(;
     name = "StartupCost",
     eval_fn = (
-        (res::IS.Results, comp::Component; kwargs...) -> let
-            val = read_component_result(res, PSI.StartVariable, comp; kwargs...)
+        (res::IS.Outputs, comp::Component; kwargs...) -> let
+            val = read_component_output(res, IOM.StartVariable, comp; kwargs...)
             start_cost = PSY.get_start_up(PSY.get_operation_cost(comp))
             get_data_vec(val) .*= start_cost
             return val
@@ -286,8 +305,8 @@ const calc_startup_cost = ComponentTimedMetric(;
 const calc_shutdown_cost = ComponentTimedMetric(;
     name = "ShutdownCost",
     eval_fn = (
-        (res::IS.Results, comp::Component; kwargs...) -> let
-            val = read_component_result(res, PSI.StopVariable, comp; kwargs...)
+        (res::IS.Outputs, comp::Component; kwargs...) -> let
+            val = read_component_output(res, IOM.StopVariable, comp; kwargs...)
             stop_cost = PSY.get_shut_down(PSY.get_operation_cost(comp))
             get_data_vec(val) .*= stop_cost
             return val
@@ -312,33 +331,45 @@ const calc_discharge_cycles = ComponentTimedMetric(;
     # the minimum state of charge. A simpler algorithm might define a cycle as a discharge
     # from the maximum state of charge to zero; the algorithm given here is more rigorous.
     eval_fn = (
-        (res::IS.Results, comp::Component; kwargs...) -> let
-            val = read_component_result(res, PSI.ActivePowerOutVariable, comp; kwargs...)
+        (res::IS.Outputs, comp::Component; kwargs...) -> let
+            val = read_component_output(res, IOM.ActivePowerOutVariable, comp; kwargs...)
             soc_limits = PSY.get_storage_level_limits(comp)
             soc_range =
-                PSY.get_storage_capacity(comp) * (soc_limits.max - soc_limits.min)
+                PSY.get_storage_capacity(comp, PSY.NU) * (soc_limits.max - soc_limits.min)
             get_data_vec(val) ./= soc_range
             return val
         end
     ),
 )
 
-"Calculate the system balance slack up"
-const calc_system_slack_up = make_system_metric_from_entry(
+"""
+Calculate the system balance slack up over the given `ComponentSelector`.
+
+The optimization model indexes this entry by its reference buses, or by `PSY.Area` under an
+area-balance network model, so the selector must name those index members —
+`make_selector(PSY.ACBus)` or `make_selector(PSY.Area)`. There is no default: assuming
+buses would silently produce wrong numbers under an area-balance model. The default
+`component_agg_fn` of `sum` collapses the selection into the system-wide total.
+"""
+const calc_system_slack_up = make_system_indexed_metric(
     "SystemSlackUp",
-    PSI.SystemBalanceSlackUp,
+    SYSTEM_SLACK_UP_KEY,
 )
 
 """
 Create a boolean `Metric` for whether the given time period has system balance slack up of
-magnitude greater than the `threshold` argument
+magnitude greater than the `threshold` argument.
+
+Thresholds every data column, so it stays correct whether the composed slack metric was
+aggregated to one column or left grouped per bus or area.
 """
-make_calc_is_slack_up(threshold::Real) = SystemTimedMetric(;
+make_calc_is_slack_up(threshold::Real) = CustomTimedMetric(;
     name = "IsSlackUp($threshold)",
-    eval_fn = (args...) -> let
-        val = compute(calc_system_slack_up, args...)
-        val[!, first(get_data_cols(val))] =
-            abs.(val[!, first(get_data_cols(val))]) .> threshold
+    eval_fn = function (out::IS.Outputs, selector; kwargs...)
+        val = compute(calc_system_slack_up, out, selector; kwargs...)
+        for col in get_data_cols(val)
+            val[!, col] = abs.(val[!, col]) .> threshold
+        end
         return val
     end,
 )
@@ -351,9 +382,9 @@ const calc_is_slack_up = make_calc_is_slack_up(DEFAULT_SLACK_UP_THRESHOLD)
 # TODO caching here too
 make_results_metric_from_sum_optimizer_stat(
     name::String,
-    stats_key::String) = ResultsTimelessMetric(
+    stats_key::String) = OutputsTimelessMetric(
     name,
-    (res::IS.Results) -> sum(PSI.read_optimizer_stats(res)[!, stats_key]),
+    (res::IS.Outputs) -> sum(IOM.read_optimizer_stats(res)[!, stats_key]),
 )
 
 "Sum the objective values achieved in the optimization problems"

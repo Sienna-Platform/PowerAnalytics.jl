@@ -1,199 +1,89 @@
-# LOADING RESULTS
-"""
-Accept a directory that contains several results subdirectories (that each contain
-`results`, `problems`, etc. sub-subdirectories) and construct a sorted dictionary from
-`String` to [`PowerSimulations.SimulationProblemResults`](@extref) where the keys are the
-subdirectory names and the values are loaded results datasets.
-
-# Arguments
- - `results_dir::AbstractString`: the directory where results subdirectories can be found
- - `problem::String`: the name of the problem to load (e.g., `UC`, `ED`)
- - `scenarios::Union{Vector{AbstractString}, Nothing} = nothing`: a list of scenario
-   subdirectories to load, or `nothing` to load all the subdirectories
- - `populate_system::Bool = false`: whether to automatically load and attach the system;
-   errors if `true` and the system has not been saved with the results. **This keyword
-   argument is `false` by default for backwards compatibility, but most PowerAnalytics
-   functionality requires results to have an attached system, so users should typically pass
-   `populate_system = true`.**
- - `kwargs...`: further keyword arguments to pass through to `get_decision_problem_results`
-
-# Examples
-Suppose we have the directory `data_root` with subdirectories `results1`, `results2`, and
-`results3`, where each of these subdirectories contains `problems/UC`. Then:
-
-```julia
-# Load results for only `results1` and `results2`:
-create_problem_results_dict(data_root, "UC", ["results1", "results2"]; populate_system = true)
-# Load results for all three scenarios:
-create_problem_results_dict(data_root, "UC"; populate_system = true)
-```
-
-# See also
-`create_problem_results_dict` is a convenience function that calls public interface in
-[`PowerSimulations.jl`](https://sienna-platform.github.io/PowerSimulations.jl/stable/). To read
-one results set, or several of them that are not all in the same parent directory, invoke
-that interface directly as needed:
-
-```julia
-# Load a single results set
-PowerSimulations.get_decision_problem_results(
-    PowerSimulations.SimulationResults(path_to_individual_results),
-    problem_name; populate_system = true)
-```
-"""
-function create_problem_results_dict(
-    results_dir::AbstractString,
-    problem::String,
-    scenarios::Union{Vector{<:AbstractString}, Nothing} = nothing;
-    populate_system::Bool = false,
-    kwargs...,
-)
-    if scenarios === nothing
-        scenarios = filter(x -> isdir(joinpath(results_dir, x)), readdir(results_dir))
-    end
-    return SortedDict(
-        scenario => PSI.get_decision_problem_results(
-            PSI.SimulationResults(joinpath(results_dir, scenario)),
-            problem; populate_system = populate_system, kwargs...) for scenario in scenarios
-    )
-end
-
-# READING KEYS FROM RESULTS
-# TODO move `DATETIME_COL` to PowerSimulations to replace its hardcoding of :DateTime
+# READING KEYS FROM OUTPUTS
 "Name of the column that represents the time axis in computed DataFrames. Currently equal to `\"$DATETIME_COL\"`."
 const DATETIME_COL = "DateTime"
 
 "Name of a column that represents whole-of-`System` data. Currently equal to `\"$SYSTEM_COL\"`."
 const SYSTEM_COL = "System"
 
-"The various key entry types that can work with a System"
-const SystemEntryType = Union{
-    PSI.VariableType,
-    PSI.ExpressionType,
-}
+"The key entry types that can be paired with a `System` rather than a `Component`"
+const SystemEntryType = Union{IOM.VariableType, IOM.ExpressionType}
 
-"The various key entry types that can be used to make a PSI.OptimizationContainerKey"
-const EntryType = Union{
-    SystemEntryType,
-    PSI.ParameterType,
-    PSI.AuxVariableType,
-    PSI.InitialConditionType,
-}
+"""
+Create an `IOM.OptimizationContainerKey` from the given key entry type and component.
 
-# TODO: put make_key in PowerSimulations and refactor existing code to use it
-"Create a PSI.OptimizationContainerKey from the given key entry type and component.
+The entry types all descend from `IS.Optimization.OptimizationKeyType`. There is no
+`ConstraintType` method because PowerAnalytics does not read duals.
 
 # Arguments
- - `entry::Type{<:EntryType}`: the key entry
+ - `entry`: the key entry type
  - `component` (`::Type{<:Union{Component, PSY.System}}` or `::Type{<:Component}` depending
    on the key type): the component type
-"
+"""
 function make_key end
-make_key(entry::Type{<:PSI.VariableType}, component::Type{<:Union{Component, PSY.System}}) =
-    PSI.VariableKey(entry, component)
-make_key(entry::Type{<:PSI.ExpressionType}, comp::Type{<:Union{Component, PSY.System}}) =
-    PSI.ExpressionKey(entry, comp)
-make_key(entry::Type{<:PSI.ParameterType}, component::Type{<:Component}) =
-    PSI.ParameterKey(entry, component)
-make_key(entry::Type{<:PSI.AuxVariableType}, component::Type{<:Component}) =
-    PSI.AuxVarKey(entry, component)
-make_key(entry::Type{<:PSI.InitialConditionType}, component::Type{<:Component}) =
-    PSI.ICKey(entry, component)
+make_key(entry::Type{<:IOM.VariableType}, component::Type{<:Union{Component, PSY.System}}) =
+    IOM.VariableKey(entry, component)
+make_key(entry::Type{<:IOM.ExpressionType}, comp::Type{<:Union{Component, PSY.System}}) =
+    IOM.ExpressionKey(entry, comp)
+make_key(entry::Type{<:IOM.ParameterType}, component::Type{<:Component}) =
+    IOM.ParameterKey(entry, component)
+make_key(entry::Type{<:IOM.AuxVariableType}, component::Type{<:Component}) =
+    IOM.AuxVarKey(entry, component)
+make_key(entry::Type{<:IOM.InitialConditionType}, component::Type{<:Component}) =
+    IOM.InitialConditionKey(entry, component)
 
-"Sort a vector of key tuples into variables, parameters, etc. like PSI.load_results! wants"
-make_entry_kwargs(key_tuples::Vector{<:Tuple}) = [
-    (key_name => filter(((this_key, _),) -> this_key <: key_type, key_tuples))
-    for (key_name, key_type) in [
-        (:variables, PSI.VariableType),
-        (:duals, PSI.ConstraintType),
-        (:parameters, PSI.ParameterType),
-        (:aux_variables, PSI.AuxVariableType),
-        (:expressions, PSI.ExpressionType),
-    ]
-]
+"""
+An output variable named by its entry-type name rather than by the type itself.
 
-# SimulationProblemResults has some extra features: the ability to `load_results!` and to specify which columns we want
-function _read_results_with_keys_wrapper(
-    res::PSI.SimulationProblemResults{PSI.DecisionModelSimulationResults},
-    key_pair;
-    start_time::Union{Nothing, DateTime} = nothing,
-    len::Union{Int, Nothing} = nothing,
-    cols::Union{Colon, Vector{String}},
-)
-    cache_len = isnothing(len) ? length(PSI.get_timestamps(res)) : len
-    PSI.load_results!(
-        res,
-        cache_len;
-        initial_time = start_time,
-        make_entry_kwargs([key_pair])...,
-    )
-    return PSI.read_results_with_keys(
-        res,
-        [make_key(key_pair...)];
-        start_time = start_time,
-        len = len,
-        cols = cols,
-        table_format = IS.TableFormat.WIDE,
-    )
+PowerAnalytics reads outputs produced by packages it does not depend on — the power
+variables live in PowerOperationsModels — so those entries are named, not typed. Give the
+bare entry name, e.g. `VariableName("ActivePowerVariable")`; the component type is appended
+at read time to form the encoded key the outputs store uses.
+
+See also: [`AuxVariableName`](@ref)
+"""
+struct VariableName
+    name::String
 end
 
-# Otherwise here is the fallback
-_read_results_with_keys_wrapper(
-    res::IS.Results,
-    key_pair;
-    start_time::Union{Nothing, DateTime} = nothing,
-    len::Union{Int, Nothing} = nothing,
-    cols::Union{Colon, Vector{String}},
-) =
-    PSI.read_results_with_keys(
-        res,
-        [make_key(key_pair...)];
-        start_time = start_time,
-        len = len,
-        table_format = IS.TableFormat.WIDE,
-    )
+"""
+An output auxiliary variable named by its entry-type name rather than by the type itself.
 
-"Given an EntryType and a Component, fetch a single column of results"
-function read_component_result(res::IS.Results, entry::Type{<:EntryType}, comp::Component;
+See also: [`VariableName`](@ref)
+"""
+struct AuxVariableName
+    name::String
+end
+
+get_name(key::VariableName) = key.name
+get_name(key::AuxVariableName) = key.name
+
+"Compose the encoded key string the outputs store uses for a named entry."
+_encode(key::Union{VariableName, AuxVariableName}, ::Type{T}) where {T} =
+    key.name * COMPONENT_NAME_DELIMITER * string(nameof(T))
+
+_with_name(::VariableName, encoded::String) = VariableName(encoded)
+_with_name(::AuxVariableName, encoded::String) = AuxVariableName(encoded)
+
+"""
+The single boundary between PowerAnalytics and an optimization outputs container.
+
+To support a new outputs type — a future simulation-outputs type, for instance — add a
+method here. Nothing in the metrics layer needs to change.
+
+Returns a wide DataFrame: a `$DATETIME_COL` column plus one column per component.
+"""
+function read_key_wide end
+
+function read_key_wide(
+    outputs::IOM.OptimizationProblemOutputs,
+    key::IOM.OptimizationContainerKey;
     start_time::Union{Nothing, DateTime} = nothing,
     len::Union{Int, Nothing} = nothing,
 )
-    key_pair = (entry, typeof(comp))
-    res = try
-        only(
-            values(
-                _read_results_with_keys_wrapper(
-                    res,
-                    key_pair;
-                    start_time = start_time,
-                    len = len,
-                    cols = [get_name(comp)],
-                ),
-            ),
-        )
-    catch e
-        if e isa KeyError && e.key == get_name(comp)
-            throw(
-                NoResultError(
-                    "$(get_name(comp)) not in the results for $(PSI.encode_key_as_string(make_key(key_pair...)))",
-                ),
-            )
-        else
-            rethrow(e)
-        end
-    end
-    return res[!, [DATETIME_COL, get_name(comp)]]
-end
-
-# TODO caching here too
-"Given an EntryType that applies to the System, fetch a single column of results"
-function read_system_result(res::IS.Results, entry::Type{<:SystemEntryType};
-    start_time::Union{Nothing, DateTime} = nothing, len::Union{Int, Nothing} = nothing)
-    key = make_key(entry, PSY.System)
-    res = only(
+    return only(
         values(
-            PSI.read_results_with_keys(
-                res,
+            IOM.read_outputs_with_keys(
+                outputs,
                 [key];
                 start_time = start_time,
                 len = len,
@@ -201,9 +91,100 @@ function read_system_result(res::IS.Results, entry::Type{<:SystemEntryType};
             ),
         ),
     )
-    @assert size(res, 2) == 2 "Expected a time column and a data column in the results for $(PSI.encode_key_as_string(key)), got $(size(res, 2)) columns"
-    @assert DATETIME_COL in names(res) "Expected a column named $DATETIME_COL in the results for $(PSI.encode_key_as_string(key)), got $(names(res))"
-    # Whatever the non-time column is, rename it to something standard
-    res = DataFrames.rename(res, findfirst(!=(DATETIME_COL), names(res)) => SYSTEM_COL)
-    return res[!, [DATETIME_COL, SYSTEM_COL]]
+end
+
+read_key_wide(
+    outputs::IS.Outputs,
+    key::VariableName;
+    start_time::Union{Nothing, DateTime} = nothing,
+    len::Union{Int, Nothing} = nothing,
+) = IOM.read_variable(
+    outputs,
+    key.name;
+    start_time = start_time,
+    len = len,
+    table_format = IS.TableFormat.WIDE,
+)
+
+read_key_wide(
+    outputs::IS.Outputs,
+    key::AuxVariableName;
+    start_time::Union{Nothing, DateTime} = nothing,
+    len::Union{Int, Nothing} = nothing,
+) = IOM.read_aux_variable(
+    outputs,
+    key.name;
+    start_time = start_time,
+    len = len,
+    table_format = IS.TableFormat.WIDE,
+)
+
+"Build the key that fetches `entry` for a component of type `T`."
+_component_key(entry::Type, ::Type{T}) where {T <: Component} = make_key(entry, T)
+_component_key(
+    entry::Union{VariableName, AuxVariableName},
+    ::Type{T},
+) where {T <: Component} =
+    _with_name(entry, _encode(entry, T))
+
+"Build the key that fetches a `System`-keyed `entry`."
+_system_key(entry::Type) = make_key(entry, PSY.System)
+_system_key(entry::Union{VariableName, AuxVariableName}) =
+    _with_name(entry, _encode(entry, PSY.System))
+
+"Human-readable form of a key or named key, for error messages."
+_key_label(key::IOM.OptimizationContainerKey) = IOM.encode_key_as_string(key)
+_key_label(key::Union{VariableName, AuxVariableName}) = key.name
+_key_label(entry::Type) = string(nameof(entry))
+
+"Pull `comp`'s column out of a wide output frame, erroring with context when it is absent."
+function _select_component_column(df::DataFrame, comp::Component, entry)
+    name = get_name(comp)
+    if !(name in names(df))
+        throw(
+            NoOutputError(
+                "$name is not in the outputs for $(_key_label(entry)); " *
+                "available columns are $(names(df))",
+            ),
+        )
+    end
+    return df[!, [DATETIME_COL, name]]
+end
+
+"""
+Fetch one `Component`'s column of raw model outputs.
+
+`entry` is either an entry type PowerAnalytics can name directly (an `IOM` variable,
+parameter, expression, or auxiliary-variable type) or a [`VariableName`](@ref) /
+[`AuxVariableName`](@ref) for entries defined in packages PowerAnalytics does not depend on.
+"""
+function read_component_output(
+    outputs::IS.Outputs,
+    entry,
+    comp::Component;
+    start_time::Union{Nothing, DateTime} = nothing,
+    len::Union{Int, Nothing} = nothing,
+)
+    key = _component_key(entry, typeof(comp))
+    df = read_key_wide(outputs, key; start_time = start_time, len = len)
+    return _select_component_column(df, comp, entry)
+end
+
+"""
+Fetch one component's column from a `PSY.System`-keyed entry.
+
+The model's index set decides the columns — reference buses under the bus-balance network
+models, `PSY.Area` under the area ones — so `comp` must be one of them. A `System`-keyed
+entry carries one column per index member, not a single system-wide column.
+"""
+function read_system_indexed_output(
+    outputs::IS.Outputs,
+    entry,
+    comp::Component;
+    start_time::Union{Nothing, DateTime} = nothing,
+    len::Union{Int, Nothing} = nothing,
+)
+    key = _system_key(entry)
+    df = read_key_wide(outputs, key; start_time = start_time, len = len)
+    return _select_component_column(df, comp, entry)
 end
