@@ -1,3 +1,8 @@
+# Parked for the psy6 port. Builds `run_test_sim`/`run_test_prob` on
+# `PSI.Simulation`/`SimulationSequence`/`get_decision_problem_results`, which have no
+# psy6 counterpart — there is no orchestration layer. Re-home against a rebuilt
+# single-`DecisionModel` fixture.
+
 # Will be superseded by https://github.com/Sienna-Platform/PowerSystems.jl/issues/1143
 function linear_fuel_to_linear_cost(fc::FuelCurve{LinearCurve})
     fuel_cost = get_fuel_cost(fc)

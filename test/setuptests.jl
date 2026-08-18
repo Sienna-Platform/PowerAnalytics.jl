@@ -10,16 +10,14 @@ using PowerSystems
 using PowerAnalytics
 using PowerAnalytics.Selectors
 using PowerAnalytics.Metrics
-using PowerSimulations
 using HiGHS
 using TimeSeries
-using StorageSystemsSimulations
-using HydroPowerSimulations
+import InfrastructureOptimizationModels
 
 const PA = PowerAnalytics
 const IS = InfrastructureSystems
 const PSY = PowerSystems
-const PSI = PowerSimulations
+const IOM = InfrastructureOptimizationModels
 const LOG_FILE = "PowerAnalytics-test.log"
 
 const BASE_DIR = dirname(dirname(pathof(PowerAnalytics)))
@@ -35,12 +33,13 @@ const TEST_DUPLICATE_RESULTS_NAME = "temp_duplicate_results"
 import PowerSystemCaseBuilder
 const PSB = PowerSystemCaseBuilder
 
+# Depend on the PSI Simulation fixture in test/test_data/results_data.jl, which psy6 has
+# no equivalent for. Parked pending a rebuilt fixture.
 const DISABLED_TEST_FILES = [  # Can generate with ls -1 test | grep "test_.*.jl"
-# "test_builtin_component_selectors.jl",
-# "test_builtin_metrics.jl",
-# "test_input.jl",
-# "test_metrics.jl",
-# "test_result_sorting.jl",
+    "test_builtin_metrics.jl",
+    "test_input.jl",
+    "test_metrics.jl",
+    "test_result_sorting.jl",
 ]
 
 LOG_LEVELS = Dict(
@@ -49,5 +48,3 @@ LOG_LEVELS = Dict(
     "Warn" => Logging.Warn,
     "Error" => Logging.Error,
 )
-
-include(joinpath(BASE_DIR, "test", "test_data", "results_data.jl"))

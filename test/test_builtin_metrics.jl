@@ -1,3 +1,6 @@
+# Parked for the psy6 port. Needs `run_test_sim`'s `PSI.Simulation` results, which have no
+# psy6 counterpart. Re-home against a rebuilt single-`DecisionModel` fixture.
+
 # For now, for the built-in metrics, we are mostly just testing that they can all be called
 # without error, though I've built out the structure to do much more than that. TODO it
 # would be great if we did.

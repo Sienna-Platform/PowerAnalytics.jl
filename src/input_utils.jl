@@ -54,15 +54,26 @@ struct AuxVariableName
     name::String
 end
 
+"""
+An output parameter named by its entry-type name rather than by the type itself.
+
+See also: [`VariableName`](@ref)
+"""
+struct ParameterName
+    name::String
+end
+
 get_name(key::VariableName) = key.name
 get_name(key::AuxVariableName) = key.name
+get_name(key::ParameterName) = key.name
 
 "Compose the encoded key string the outputs store uses for a named entry."
-_encode(key::Union{VariableName, AuxVariableName}, ::Type{T}) where {T} =
+_encode(key::Union{VariableName, AuxVariableName, ParameterName}, ::Type{T}) where {T} =
     key.name * COMPONENT_NAME_DELIMITER * string(nameof(T))
 
 _with_name(::VariableName, encoded::String) = VariableName(encoded)
 _with_name(::AuxVariableName, encoded::String) = AuxVariableName(encoded)
+_with_name(::ParameterName, encoded::String) = ParameterName(encoded)
 
 """
 The single boundary between PowerAnalytics and an optimization outputs container.
@@ -119,22 +130,35 @@ read_key_wide(
     table_format = IS.TableFormat.WIDE,
 )
 
+read_key_wide(
+    outputs::IS.Outputs,
+    key::ParameterName;
+    start_time::Union{Nothing, DateTime} = nothing,
+    len::Union{Int, Nothing} = nothing,
+) = IOM.read_parameter(
+    outputs,
+    key.name;
+    start_time = start_time,
+    len = len,
+    table_format = IS.TableFormat.WIDE,
+)
+
 "Build the key that fetches `entry` for a component of type `T`."
 _component_key(entry::Type, ::Type{T}) where {T <: Component} = make_key(entry, T)
 _component_key(
-    entry::Union{VariableName, AuxVariableName},
+    entry::Union{VariableName, AuxVariableName, ParameterName},
     ::Type{T},
 ) where {T <: Component} =
     _with_name(entry, _encode(entry, T))
 
 "Build the key that fetches a `System`-keyed `entry`."
 _system_key(entry::Type) = make_key(entry, PSY.System)
-_system_key(entry::Union{VariableName, AuxVariableName}) =
+_system_key(entry::Union{VariableName, AuxVariableName, ParameterName}) =
     _with_name(entry, _encode(entry, PSY.System))
 
 "Human-readable form of a key or named key, for error messages."
 _key_label(key::IOM.OptimizationContainerKey) = IOM.encode_key_as_string(key)
-_key_label(key::Union{VariableName, AuxVariableName}) = key.name
+_key_label(key::Union{VariableName, AuxVariableName, ParameterName}) = key.name
 _key_label(entry::Type) = string(nameof(entry))
 
 "Pull `comp`'s column out of a wide output frame, erroring with context when it is absent."
@@ -156,7 +180,8 @@ Fetch one `Component`'s column of raw model outputs.
 
 `entry` is either an entry type PowerAnalytics can name directly (an `IOM` variable,
 parameter, expression, or auxiliary-variable type) or a [`VariableName`](@ref) /
-[`AuxVariableName`](@ref) for entries defined in packages PowerAnalytics does not depend on.
+[`AuxVariableName`](@ref) / [`ParameterName`](@ref) for entries defined in packages
+PowerAnalytics does not depend on.
 """
 function read_component_output(
     outputs::IS.Outputs,

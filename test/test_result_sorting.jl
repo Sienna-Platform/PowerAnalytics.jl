@@ -1,3 +1,7 @@
+# Parked for the psy6 port. Depends on `run_test_sim`'s `PSI.Simulation` results and
+# `PowerSimulations.VariableKey`/`ParameterKey`, which have no psy6 counterpart. Re-home
+# against a rebuilt single-`DecisionModel` fixture using IOM's same-named key types.
+
 (results_uc, results_ed) = run_test_sim(TEST_RESULT_DIR, TEST_SIM_NAME)
 problem_results = run_test_prob()
 

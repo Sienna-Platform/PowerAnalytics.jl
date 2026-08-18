@@ -13,6 +13,8 @@ export is_col_meta, set_col_meta, set_col_meta!, get_time_df, get_time_vec, get_
     get_agg_meta, set_agg_meta!, rebuild_metric
 export compute, compute_all, hcat_timed_dfs, aggregate_time, compose_metrics
 export NoOutputError, read_component_output, read_system_indexed_output
+export load_outputs
+export realized_timestamps, read_realized_key_wide
 export parse_generator_mapping_file, parse_injector_categories, parse_generator_categories
 export mean, weighted_mean, unweighted_sum
 
@@ -31,13 +33,15 @@ import PowerSystems
 import PowerSystems:
     Component,
     ComponentSelector,
-    make_selector, get_name, get_groups,
-    get_component, get_components,
+    make_selector, get_name,
     get_available,
     COMPONENT_NAME_DELIMITER,
     rebuild_selector
 
 import InfrastructureSystems
+# These three resolve against both `System` and `IS.Outputs`; PowerSystems' own versions are
+# pure `System`-typed forwarders and would MethodError against outputs.
+import InfrastructureSystems: get_groups, get_component, get_components
 import InfrastructureOptimizationModels
 import InteractiveUtils
 
@@ -55,7 +59,9 @@ using DocStringExtensions
                                  """
 
 # INCLUDES
+include("load_outputs.jl")
 include("input_utils.jl")
+include("realized_outputs.jl")
 include("output_utils.jl")
 include("metrics.jl")
 include("builtin_component_selectors.jl")

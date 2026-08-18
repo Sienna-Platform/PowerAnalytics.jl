@@ -93,6 +93,7 @@ import
     ..read_component_output,
     ..VariableName,
     ..AuxVariableName,
+    ..ParameterName,
     ..rebuild_selector,
     ..DataFrame,
     ..DATETIME_COL,
@@ -130,6 +131,9 @@ const ENERGY_VARIABLE_KEY = VariableName("EnergyVariable")
 
 "Encoded key for the system balance slack up variable, defined in PowerOperationsModels."
 const SYSTEM_SLACK_UP_KEY = VariableName("SystemBalanceSlackUp")
+
+"Encoded key for the active power forecast parameter, defined in PowerOperationsModels."
+const ACTIVE_POWER_FORECAST_PARAMETER_KEY = ParameterName("ActivePowerTimeSeriesParameter")
 
 # NOTE ActivePowerVariable is in units of megawatts per simulation time period, so it's
 # actually energy and it makes sense to sum it up.
@@ -172,7 +176,7 @@ const calc_load_from_storage = compose_metrics(
 "Fetch the forecast active power of the specified `ComponentSelector`"
 const calc_active_power_forecast = make_component_metric_from_entry(
     "ActivePowerForecast",
-    IOM.ActivePowerTimeSeriesParameter,
+    ACTIVE_POWER_FORECAST_PARAMETER_KEY,
 )
 
 "Fetch the forecast active load of the specified `ComponentSelector`"
@@ -180,8 +184,8 @@ const calc_load_forecast = ComponentTimedMetric(;
     name = "LoadForecast",
     # Load is negative power
     # NOTE if we had our own time-indexed dataframe type we could overload multiplication with a scalar and simplify this
-    eval_fn = (args...) -> let
-        val = compute(calc_active_power_forecast, args...)
+    eval_fn = (res::IS.Outputs, comp::Component; kwargs...) -> let
+        val = compute(calc_active_power_forecast, res, comp; kwargs...)
         get_data_vec(val) .*= -1
         return val
     end,

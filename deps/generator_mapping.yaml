@@ -33,7 +33,7 @@ NG-Steam:
   # the actual prime mover before falling back to the fuel-only rule.
   - {gentype: Any, primemover: null, fuel: NATURAL_GAS}
   - {gentype: Any, primemover: null, fuel: OTHER_GAS}
-  - {gentype: Any, primemover: null, fuel: BLASTE_FURNACE_GAS}
+  - {gentype: Any, primemover: null, fuel: BLAST_FURNACE_GAS}
 Hydropower:
   # Catch all HydroGen subtypes (e.g., HydroPumpTurbine with primemover=PS) before
   # they fall through to the generic Storage `{Any, PS, null}` rule above.
@@ -62,7 +62,7 @@ Biopower:
   - {gentype: Any, primemover: null, fuel: LANDFILL_GAS}
   - {gentype: Any, primemover: null, fuel: BLACK_LIQUOR}
   - {gentype: Any, primemover: null, fuel: SLUDGE_WASTE}
-  - {gentype: Any, primemover: null, fuel: TIREDERIVED_FUEL}
+  - {gentype: Any, primemover: null, fuel: TIRE_DERIVED_FUEL}
   - {gentype: Any, primemover: null, fuel: OTHER_BIOMASS_LIQUIDS}
   - {gentype: Any, primemover: null, fuel: OTHER_BIOMASS_SOLIDS}
   - {gentype: Any, primemover: null, fuel: OTHER_BIOMASS_GAS}

@@ -1,3 +1,7 @@
+# Parked for the psy6 port. Depends on `PSI.Simulation`/`SimulationSequence`/
+# `get_decision_problem_results`, which have no psy6 counterpart — there is no
+# orchestration layer. Re-home against a rebuilt single-`DecisionModel` fixture.
+
 stock_decision_results_sets = run_test_sim(TEST_RESULT_DIR, TEST_SIM_NAME)
 stock_results_prob = run_test_prob()
 

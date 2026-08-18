@@ -1,0 +1,53 @@
+import InfrastructureOptimizationModels as IOM
+
+test_lo_sys = PSB.build_system(PSB.PSITestSystems, "c_sys5_bat")
+test_lo_other_sys = PSB.build_system(PSB.PSITestSystems, "c_sys5_all_components")
+
+"A minimal `IOM.OptimizationProblemOutputs` for `sys`, with no variable/parameter data."
+function _make_test_outputs(sys::PSY.System)
+    timestamps = [Dates.DateTime(2024, 1, 1) + Dates.Hour(i) for i in 0:3]
+    return IOM.OptimizationProblemOutputs(
+        100.0,
+        timestamps,
+        nothing,
+        IS.get_uuid(sys),
+        Dict{IOM.AuxVarKey, DataFrame}(),
+        Dict{IOM.VariableKey, DataFrame}(),
+        Dict{IOM.ConstraintKey, DataFrame}(),
+        Dict{IOM.ParameterKey, DataFrame}(),
+        Dict{IOM.ExpressionKey, DataFrame}(),
+        DataFrame(),
+        IOM.OptimizationContainerMetadata(),
+        "TestModel",
+        "",
+        "",
+    )
+end
+
+@testset "load_outputs two-argument form attaches a system" begin
+    dir = mktempdir(; cleanup = true)
+    IOM.serialize_outputs(_make_test_outputs(test_lo_sys), dir)
+    out = load_outputs(dir, test_lo_sys)
+    @test IS.get_source_data(out) === test_lo_sys
+end
+
+@testset "load_outputs two-argument form propagates a UUID mismatch" begin
+    dir = mktempdir(; cleanup = true)
+    IOM.serialize_outputs(_make_test_outputs(test_lo_sys), dir)
+    @test_throws IS.InvalidValue load_outputs(dir, test_lo_other_sys)
+end
+
+@testset "load_outputs one-argument form errors without a system file" begin
+    dir = mktempdir(; cleanup = true)
+    IOM.serialize_outputs(_make_test_outputs(test_lo_sys), dir)
+    @test_throws ErrorException load_outputs(dir)
+end
+
+@testset "load_outputs one-argument form round-trips" begin
+    dir = mktempdir(; cleanup = true)
+    IOM.serialize_outputs(_make_test_outputs(test_lo_sys), dir)
+    system_file = joinpath(dir, IOM.make_system_filename(IS.get_uuid(test_lo_sys)))
+    PSY.to_json(test_lo_sys, system_file)
+    out = load_outputs(dir)
+    @test IS.get_uuid(IS.get_source_data(out)) == IS.get_uuid(test_lo_sys)
+end

@@ -1,6 +1,13 @@
 # PowerAnalytics: psy6 port + self-contained outputs, reloaded as results
 
-Design and plan. Written 2026-08-14, revised twice after review. Not implemented.
+Design and plan. Written 2026-08-14, revised twice after review.
+
+> **Status 2026-08-17: Part A implemented, Parts B and C superseded.**
+> Commit `1870a0c` executed phases 1–8; the Part A gate now passes. §0 (terminology) and §3
+> (the round trip) still hold and are still the reference. §5's baseline table is obsolete —
+> `jd/schema_matching`, `jd/data_source_sa` and `jd/remove_pscb_code` have merged into their
+> line branches. For current state and the remaining work see
+> `2026-08-17-pa-part-b-self-contained-outputs.md`.
 
 ## 0. Terminology
 
