@@ -16,23 +16,21 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 TimeSeries = "9e3dc215-6440-5c97-bce1-76c03772f85e"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
-# PowerNetworkMatrices is a transitive dependency only. It is listed here so that
-# `[sources]` can pin it: Pkg requires every `[sources]` entry to appear in `[deps]`
-# or `[extras]`.
+# PowerNetworkMatrices, PowerCoreOpenAPIModels, and PowerOperationsOpenAPIModels are
+# transitive dependencies only. They are listed here so that `[sources]` can pin them:
+# Pkg requires every `[sources]` entry to appear in `[deps]` or `[extras]`.
 [extras]
+PowerCoreOpenAPIModels = "b7b40286-e793-417d-a9a0-b1583e4da1cb"
 PowerNetworkMatrices = "bed98974-b02a-5e2f-9fe0-a103f5c450dd"
+PowerOperationsOpenAPIModels = "a372b6d7-45a2-44c2-8199-6a724b72e8ff"
 
-# InfrastructureOptimizationModels tracks the sibling checkout. InfrastructureSystems and
-# PowerSystems are pinned to git revs INTERIM: the local InfrastructureSystems branch does
-# not precompile — it needs a `DataSource` type that its own pinned PowerOpenAPIModels
-# `main` rev does not carry — and a `[sources]` path override cannot reach it, because that
-# pin is subdir-based and declared by InfrastructureSystems itself. Switch both to
-# `{path = "../..."}` once PowerOpenAPIModels `main` carries `DataSource`.
 [sources]
 InfrastructureOptimizationModels = {path = "../InfrastructureOptimizationModels.jl"}
-InfrastructureSystems = {rev = "IS4", url = "https://github.com/Sienna-Platform/InfrastructureSystems.jl"}
+InfrastructureSystems = {path = "../InfrastructureSystems.jl"}
+PowerCoreOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "main", subdir = "PowerCoreOpenAPIModels.jl"}
 PowerNetworkMatrices = {path = "../PowerNetworkMatrices.jl"}
-PowerSystems = {rev = "psy6", url = "https://github.com/Sienna-Platform/PowerSystems.jl"}
+PowerOperationsOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "main", subdir = "PowerOperationsOpenAPIModels.jl"}
+PowerSystems = {path = "../PowerSystems.jl"}
 
 [compat]
 DataFrames = "1"

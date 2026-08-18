@@ -10,9 +10,13 @@ InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 PowerAnalytics = "56ce1300-00bc-47e4-ba8c-b166ccc19f51"
+PowerCoreOpenAPIModels = "b7b40286-e793-417d-a9a0-b1583e4da1cb"
+PowerFlowFileParser = "bed98974-b02e-5e2f-9ee0-a103f5c450dd"
 PowerNetworkMatrices = "bed98974-b02a-5e2f-9fe0-a103f5c450dd"
+PowerOperationsOpenAPIModels = "a372b6d7-45a2-44c2-8199-6a724b72e8ff"
 PowerSystemCaseBuilder = "f00506e0-b84f-492a-93c2-c0a9afc4364e"
 PowerSystems = "bcd98974-b02a-5e2f-9ee0-a103f5c450dd"
+PowerTableDataParser = "2b750c0e-0bff-11f1-9200-1befd75df6be"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TestSetExtensions = "98d24dd4-01ad-11ea-1b02-c9a08f80db04"
@@ -22,6 +26,11 @@ YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 [sources]
 InfrastructureOptimizationModels = {path = "../../InfrastructureOptimizationModels.jl"}
 InfrastructureSystems = {path = "../../InfrastructureSystems.jl"}
+PowerAnalytics = {path = ".."}
+PowerCoreOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "main", subdir = "PowerCoreOpenAPIModels.jl"}
+PowerFlowFileParser = {path = "../../PowerFlowFileParser.jl"}
 PowerNetworkMatrices = {path = "../../PowerNetworkMatrices.jl"}
+PowerOperationsOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "main", subdir = "PowerOperationsOpenAPIModels.jl"}
 PowerSystemCaseBuilder = {path = "../../PowerSystemCaseBuilder.jl"}
 PowerSystems = {path = "../../PowerSystems.jl"}
+PowerTableDataParser = {url = "https://github.com/NLR-Sienna/PowerTableDataParser.jl.git", rev = "psy6"}
