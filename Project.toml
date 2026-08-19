@@ -27,9 +27,9 @@ PowerOperationsOpenAPIModels = "a372b6d7-45a2-44c2-8199-6a724b72e8ff"
 [sources]
 InfrastructureOptimizationModels = {path = "../InfrastructureOptimizationModels.jl"}
 InfrastructureSystems = {path = "../InfrastructureSystems.jl"}
-PowerCoreOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "main", subdir = "PowerCoreOpenAPIModels.jl"}
+PowerCoreOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "feat/infrastore-integration", subdir = "PowerCoreOpenAPIModels.jl"}
 PowerNetworkMatrices = {path = "../PowerNetworkMatrices.jl"}
-PowerOperationsOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "main", subdir = "PowerOperationsOpenAPIModels.jl"}
+PowerOperationsOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "feat/infrastore-integration", subdir = "PowerOperationsOpenAPIModels.jl"}
 PowerSystems = {path = "../PowerSystems.jl"}
 
 [compat]
