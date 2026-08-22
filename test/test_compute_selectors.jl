@@ -8,7 +8,7 @@ function _make_selector_test_outputs(sys::PSY.System)
         100.0,
         _CS_TIMESTAMPS,
         sys,
-        IS.get_uuid(sys),
+        PSY.get_system_uuid(sys),
         Dict{IOM.AuxVarKey, DataFrame}(),
         Dict{IOM.VariableKey, DataFrame}(),
         Dict{IOM.ConstraintKey, DataFrame}(),

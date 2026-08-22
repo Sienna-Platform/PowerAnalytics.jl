@@ -10,7 +10,7 @@ function _make_test_outputs(sys::PSY.System)
         100.0,
         timestamps,
         nothing,
-        IS.get_uuid(sys),
+        PSY.get_system_uuid(sys),
         Dict{IOM.AuxVarKey, DataFrame}(),
         Dict{IOM.VariableKey, DataFrame}(),
         Dict{IOM.ConstraintKey, DataFrame}(),
@@ -37,7 +37,7 @@ end
     @test_throws IS.InvalidValue load_outputs(dir, test_lo_other_sys)
 end
 
-@testset "load_outputs one-argument form errors without a system file" begin
+@testset "load_outputs one-argument form errors without a system bundle" begin
     dir = mktempdir(; cleanup = true)
     IOM.serialize_outputs(_make_test_outputs(test_lo_sys), dir)
     @test_throws ErrorException load_outputs(dir)
@@ -46,8 +46,14 @@ end
 @testset "load_outputs one-argument form round-trips" begin
     dir = mktempdir(; cleanup = true)
     IOM.serialize_outputs(_make_test_outputs(test_lo_sys), dir)
-    system_file = joinpath(dir, IOM.make_system_filename(IS.get_uuid(test_lo_sys)))
-    PSY.to_json(test_lo_sys, system_file)
+    system_dir = joinpath(dir, IOM.make_system_dirname(PSY.get_system_uuid(test_lo_sys)))
+    PSY.to_file(test_lo_sys, system_dir; unit_system = :device_base)
     out = load_outputs(dir)
-    @test IS.get_uuid(IS.get_source_data(out)) == IS.get_uuid(test_lo_sys)
+    loaded = IS.get_source_data(out)
+    # Not a UUID comparison: an OpenAPI bundle is rebuilt with fresh UUIDs, so identity is
+    # established by the bundle's location and checked here on content instead.
+    @test PSY.get_name(loaded) == PSY.get_name(test_lo_sys)
+    @test PSY.get_base_power(loaded) == PSY.get_base_power(test_lo_sys)
+    @test length(collect(PSY.get_components(PSY.Component, loaded))) ==
+          length(collect(PSY.get_components(PSY.Component, test_lo_sys)))
 end
