@@ -27,10 +27,10 @@ YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 InfrastructureOptimizationModels = {path = "../../InfrastructureOptimizationModels.jl"}
 InfrastructureSystems = {path = "../../InfrastructureSystems.jl"}
 PowerAnalytics = {path = ".."}
-PowerCoreOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "feat/infrastore-integration", subdir = "PowerCoreOpenAPIModels.jl"}
+PowerCoreOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "main", subdir = "PowerCoreOpenAPIModels.jl"}
 PowerFlowFileParser = {path = "../../PowerFlowFileParser.jl"}
 PowerNetworkMatrices = {path = "../../PowerNetworkMatrices.jl"}
-PowerOperationsOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "feat/infrastore-integration", subdir = "PowerOperationsOpenAPIModels.jl"}
+PowerOperationsOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "main", subdir = "PowerOperationsOpenAPIModels.jl"}
 PowerSystemCaseBuilder = {path = "../../PowerSystemCaseBuilder.jl"}
 PowerSystems = {path = "../../PowerSystems.jl"}
 PowerTableDataParser = {url = "https://github.com/NLR-Sienna/PowerTableDataParser.jl.git", rev = "psy6"}
