@@ -227,6 +227,34 @@ Return a copy of `df` with the `DateTime` column removed when present.
 
 Useful before arithmetic or aggregation on result tables that still carry timestamps.
 """
+function get_branch_variable_keys(
+    results::IS.Results;
+    variable_keys::Vector{T} = PSI.list_variable_keys(results),
+) where {T <: PSI.OptimizationContainerKey}
+    filter_keys = Vector{PSI.OptimizationContainerKey}()
+    for k in variable_keys
+        if PSI.get_component_type(k) <: PSY.ACBranch &&
+           PSI.get_entry_type(k) ∈ SUPPORTED_BRANCH_VARIABLES
+            push!(filter_keys, k)
+        end
+    end
+    return filter_keys
+end
+
+function get_branch_aux_variable_keys(
+    results::IS.Results;
+    aux_variable_keys::Vector{T} = PSI.list_aux_variable_keys(results),
+) where {T <: PSI.OptimizationContainerKey}
+    filter_keys = Vector{PSI.OptimizationContainerKey}()
+    for k in aux_variable_keys
+        if PSI.get_component_type(k) <: PSY.ACBranch &&
+           PSI.get_entry_type(k) ∈ SUPPORTED_BRANCH_AUX_VARIABLES
+            push!(filter_keys, k)
+        end
+    end
+    return filter_keys
+end
+
 no_datetime(df::DataFrames.DataFrame) = df[:, propertynames(df) .!== :DateTime]
 
 function add_fixed_parameters!(
@@ -709,6 +737,58 @@ function get_service_data(
 
     timestamps = PSI.get_realized_timestamps(results; start_time = initial_time, len = len)
 
+    return PowerData(variables, timestamps)
+end
+
+"""
+Gather active power flow data for `ACBranch` components from a simulation results object.
+
+Returns a [`PowerData`](@ref) whose `data` holds one wide-format `DataFrame` per branch
+flow key (a `DateTime` column plus one column per branch). Flow `Variable`s are preferred;
+flow `AuxVariable`s (e.g. `PowerFlowBranchActivePowerFromTo`) are included only for branch
+types that have no flow variable, so DC power-flow runs that emit only the aux variable are
+still covered.
+
+# Keyword arguments
+ - `filter_func::Union{Function, Nothing}`: restrict the returned branches.
+ - `variable_keys` / `aux_variable_keys`: override the keys read from `results`.
+ - `initial_time`/`start_time`, `horizon`/`len`: restrict the realized window.
+"""
+function get_branch_data(
+    results::R;
+    filter_func::Union{Function, Nothing} = nothing,
+    kwargs...,
+) where {R <: IS.Results}
+    initial_time = get(kwargs, :initial_time, get(kwargs, :start_time, nothing))
+    len = get(kwargs, :horizon, get(kwargs, :len, nothing))
+    variable_keys = get(kwargs, :variable_keys, PSI.list_variable_keys(results))
+    aux_variable_keys = get(kwargs, :aux_variable_keys, PSI.list_aux_variable_keys(results))
+
+    variable_keys = get_branch_variable_keys(results; variable_keys = variable_keys)
+    aux_variable_keys =
+        get_branch_aux_variable_keys(results; aux_variable_keys = aux_variable_keys)
+
+    variables = PSI.read_results_with_keys(
+        results,
+        variable_keys;
+        start_time = initial_time,
+        len = len,
+        table_format = IS.TableFormat.WIDE,
+    )
+    filter_results!(variables, filter_func, results)
+
+    aux_variables = PSI.read_results_with_keys(
+        results,
+        aux_variable_keys;
+        start_time = initial_time,
+        len = len,
+        table_format = IS.TableFormat.WIDE,
+    )
+    filter_results!(aux_variables, filter_func, results)
+
+    add_aux_variables!(variables, aux_variables)
+
+    timestamps = PSI.get_realized_timestamps(results; start_time = initial_time, len = len)
     return PowerData(variables, timestamps)
 end
 

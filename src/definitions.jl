@@ -10,6 +10,16 @@ const SUPPORTED_SOURCE_PARAMETERS =
     [PSI.ActivePowerInTimeSeriesParameter, PSI.ActivePowerOutTimeSeriesParameter]
 const SUPPORTED_SERVICE_VARIABLES = [PSI.ActivePowerReserveVariable]
 
+const SUPPORTED_BRANCH_VARIABLES = [
+    PSI.FlowActivePowerVariable,
+    PSI.FlowActivePowerFromToVariable,
+    PSI.FlowActivePowerToFromVariable,
+]
+const SUPPORTED_BRANCH_AUX_VARIABLES = [
+    PSI.PowerFlowBranchActivePowerFromTo,
+    PSI.PowerFlowBranchActivePowerToFrom,
+]
+
 const SUPPORTED_OVERGENERATION_VARIABLE = PSI.SystemBalanceSlackDown
 const SUPPORTED_UNSERVEDENERGY_VARIABLES = PSI.SystemBalanceSlackUp
 const BALANCE_SLACKVARS = Dict(

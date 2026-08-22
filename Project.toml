@@ -1,7 +1,7 @@
 name = "PowerAnalytics"
 uuid = "56ce1300-00bc-47e4-ba8c-b166ccc19f51"
 authors = ["Gabriel Konar-Steenberg <gabriel.konarsteenberg@nrel.gov>", "cbarrows <clayton.barrows@nrel.gov>"]
-version = "1.4.1"
+version = "1.5.0"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -23,7 +23,7 @@ Dates = "1"
 DocStringExtensions = "0.9.3"
 InfrastructureSystems = "3"
 InteractiveUtils = "1"
-PowerSimulations = "0.37"
+PowerSimulations = "0.38"
 PowerSystems = "^5.10"
 TimeSeries = "~0.25"
 YAML = "0.4"
