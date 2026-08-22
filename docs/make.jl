@@ -16,7 +16,8 @@ links = InterLinks(
     "PowerSystems" => "https://sienna-platform.github.io/PowerSystems.jl/stable/",
     "PowerSimulations" => "https://sienna-platform.github.io/PowerSimulations.jl/stable/",
     "StorageSystemsSimulations" => "https://sienna-platform.github.io/StorageSystemsSimulations.jl/stable/",
-    "HydroPowerSimulations" => "https://sienna-platform.github.io/HydroPowerSimulations.jl/dev/",
+    "HydroPowerSimulations" => "https://sienna-platform.github.io/HydroPowerSimulations.jl/stable/",
+    "PowerGraphics" => "https://sienna-platform.github.io/PowerGraphics.jl/stable/",
 )
 
 include(joinpath(@__DIR__, "make_tutorials.jl"))
@@ -27,9 +28,14 @@ pages = OrderedDict(
     "Tutorials" => Any[
         "Simulation Scenarios Analysis" => "tutorials/generated_PA_workflow_tutorial.md",
     ],
-    # TODO flesh out the how-tos, explanation
-    # "How to..." => Any[#="stub" => "how_to_guides/stub.md"=#],
-    # "Explanation" => Any[#="stub" => "explanation/stub.md"=#],
+    "How to..." => Any[
+        "How to group generation by category" => "how_to_guides/how_to_group_generation_by_fuel.md",
+        "How to define a custom metric" => "how_to_guides/how_to_define_a_custom_metric.md",
+    ],
+    "Explanation" => Any[
+        "How `PowerAnalytics` thinks" => "explanation/metrics_and_component_selectors.md",
+        "Choosing built-in metrics" => "explanation/choosing_built_in_metrics.md",
+    ],
     "Reference" => Any[
         "Public API" => "reference/public.md",
         "Developers" => ["Developer Guidelines" => "reference/developer_guidelines.md",
