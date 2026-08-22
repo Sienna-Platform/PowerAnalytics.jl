@@ -1,0 +1,2 @@
+DateTime,Thermal Generation (MWh),Renewables Curtailment (MWh),Storage Charging (MWh),Storage Discharging (MWh),Storage SOC (MWh),Objective Value,Solve Time (s),Memory Allocated
+2020-07-01T00:00:00.0,2.782660200472501e6,27960.73016567697,48639.51231912981,48639.51231912982,571876.2496216657,1.297206124983336e8,91.10928797721863,5.825324e7
