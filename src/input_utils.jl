@@ -104,17 +104,73 @@ function read_key_wide(
     )
 end
 
+"""
+Fallback for any `IS.Outputs` that isn't `IOM.OptimizationProblemOutputs` (a PowerSimulations
+`Simulation`'s per-problem results, for instance): reduce the typed key to its encoded name
+and re-dispatch through the `VariableName`/`AuxVariableName`/`ParameterName` methods below.
+This is what lets PowerAnalytics read from such a results type without PowerAnalytics
+depending on it — the type only needs to implement `IOM.read_variable`/`read_aux_variable`/
+`read_parameter` by name, which every `IS.Outputs` results type is expected to.
+
+Not ambiguous with the `OptimizationProblemOutputs` method above: both take
+`::IOM.OptimizationContainerKey` for the second argument, so the two differ only in the
+first, where `OptimizationProblemOutputs <: IS.Outputs` totally orders them.
+"""
+function read_key_wide(
+    outputs::IS.Outputs,
+    key::IOM.OptimizationContainerKey;
+    start_time::Union{Nothing, DateTime} = nothing,
+    len::Union{Int, Nothing} = nothing,
+)
+    encoded = IOM.encode_key_as_string(key)
+    named_key = _as_named_key(key, encoded)
+    return read_key_wide(outputs, named_key; start_time = start_time, len = len)
+end
+
+_as_named_key(::IOM.VariableKey, encoded::String) = VariableName(encoded)
+_as_named_key(::IOM.AuxVarKey, encoded::String) = AuxVariableName(encoded)
+_as_named_key(::IOM.ParameterKey, encoded::String) = ParameterName(encoded)
+_as_named_key(key::IOM.OptimizationContainerKey, ::String) = error(
+    "No named-key equivalent for $(typeof(key)) is defined, so it cannot be read from an " *
+    "outputs type other than IOM.OptimizationProblemOutputs. Add a `VariableName`-style " *
+    "wrapper and a `_as_named_key` method for it if this entry type needs to be readable " *
+    "from other results types.",
+)
+
+"""
+Reduce a `read_variable`/`read_aux_variable`/`read_parameter` result to one flat wide
+`DataFrame`, honoring `read_key_wide`'s own contract regardless of outputs type.
+
+Most outputs types already return that shape directly. Some (a rolling-horizon
+`Simulation`'s per-problem results, for instance) instead return a per-window
+`SortedDict{DateTime,DataFrame}` under `TableFormat.WIDE`, because consecutive windows
+overlap and only each window's non-overlapping prefix is realized — narrow, per-window data
+that `read_key_wide` has historically just handed back as-is, breaking every caller that
+expects the one-DataFrame contract. Stitch it down to the realized time series here instead
+of pushing that reshaping onto every caller.
+"""
+_make_wide(raw::DataFrame, outputs::IS.Outputs, start_time, len) = raw
+_make_wide(raw, outputs::IS.Outputs, start_time, len) = IOM.make_realized_dataframe(
+    raw,
+    IOM.get_realized_timestamps(outputs; start_time = start_time, len = len),
+)
+
 read_key_wide(
     outputs::IS.Outputs,
     key::VariableName;
     start_time::Union{Nothing, DateTime} = nothing,
     len::Union{Int, Nothing} = nothing,
-) = IOM.read_variable(
+) = _make_wide(
+    IOM.read_variable(
+        outputs,
+        key.name;
+        start_time = start_time,
+        len = len,
+        table_format = IS.TableFormat.WIDE,
+    ),
     outputs,
-    key.name;
-    start_time = start_time,
-    len = len,
-    table_format = IS.TableFormat.WIDE,
+    start_time,
+    len,
 )
 
 read_key_wide(
@@ -122,12 +178,17 @@ read_key_wide(
     key::AuxVariableName;
     start_time::Union{Nothing, DateTime} = nothing,
     len::Union{Int, Nothing} = nothing,
-) = IOM.read_aux_variable(
+) = _make_wide(
+    IOM.read_aux_variable(
+        outputs,
+        key.name;
+        start_time = start_time,
+        len = len,
+        table_format = IS.TableFormat.WIDE,
+    ),
     outputs,
-    key.name;
-    start_time = start_time,
-    len = len,
-    table_format = IS.TableFormat.WIDE,
+    start_time,
+    len,
 )
 
 read_key_wide(
@@ -135,12 +196,17 @@ read_key_wide(
     key::ParameterName;
     start_time::Union{Nothing, DateTime} = nothing,
     len::Union{Int, Nothing} = nothing,
-) = IOM.read_parameter(
+) = _make_wide(
+    IOM.read_parameter(
+        outputs,
+        key.name;
+        start_time = start_time,
+        len = len,
+        table_format = IS.TableFormat.WIDE,
+    ),
     outputs,
-    key.name;
-    start_time = start_time,
-    len = len,
-    table_format = IS.TableFormat.WIDE,
+    start_time,
+    len,
 )
 
 "Build the key that fetches `entry` for a component of type `T`."
