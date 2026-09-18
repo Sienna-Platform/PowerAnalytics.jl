@@ -20,7 +20,7 @@ function load_outputs(directory::AbstractString)
             "with the system used to produce these outputs instead.",
         )
     end
-    sys = PSY.from_file(PSY.System, system_dir; time_series_read_only = true)
+    sys = PSY.from_file(system_dir; time_series_read_only = true)
     IOM.set_source_data!(out, sys)
     return out
 end
