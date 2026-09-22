@@ -150,10 +150,26 @@ expects the one-DataFrame contract. Stitch it down to the realized time series h
 of pushing that reshaping onto every caller.
 """
 _make_wide(raw::DataFrame, outputs::IS.Outputs, start_time, len) = raw
-_make_wide(raw, outputs::IS.Outputs, start_time, len) = IOM.make_realized_dataframe(
-    raw,
-    IOM.get_realized_timestamps(outputs; start_time = start_time, len = len),
+
+function _make_wide(
+    raw::AbstractDict{Dates.DateTime, DataFrame},
+    outputs::IS.Outputs,
+    start_time,
+    len,
 )
+    realized = realized_timestamps(outputs; start_time = start_time, len = len)
+    initial_times = sort!(collect(keys(raw)))
+    pieces = DataFrame[]
+    for (i, t0) in enumerate(initial_times)
+        window = raw[t0]
+        if i < length(initial_times)
+            window = filter(DATETIME_COL => t -> t0 <= t < initial_times[i + 1], window)
+        end
+        push!(pieces, window)
+    end
+    stitched = vcat(pieces...)
+    return filter(DATETIME_COL => in(realized), stitched)
+end
 
 read_key_wide(
     outputs::IS.Outputs,

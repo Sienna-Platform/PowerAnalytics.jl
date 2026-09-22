@@ -71,3 +71,51 @@ IOM.read_variable(outputs::_FakeRealizedOutputs, key::AbstractString; kwargs...)
     key = PowerAnalytics.VariableName("ActivePowerVariable__ThermalStandard")
     @test read_realized_key_wide(outputs, key) == expected
 end
+
+"""
+A test-local `IS.Outputs` mirroring a PowerSimulations `SimulationProblemResults`: its
+by-name `IOM.read_parameter` returns a `Dict{DateTime, DataFrame}` of overlapping,
+already-wide per-execution windows (2-hour interval, 4-hour horizon, hourly resolution).
+"""
+struct _FakeWindowedOutputs <: IS.Outputs
+    data::Dict{Dates.DateTime, DataFrame}
+    realized::Vector{Dates.DateTime}
+end
+
+PowerAnalytics.realized_timestamps(
+    outputs::_FakeWindowedOutputs;
+    start_time::Union{Nothing, Dates.DateTime} = nothing,
+    len::Union{Int, Nothing} = nothing,
+) = outputs.realized
+
+IOM.read_parameter(outputs::_FakeWindowedOutputs, key::AbstractString; kwargs...) =
+    outputs.data
+
+@testset "read_realized_key_wide stitches overlapping simulation windows" begin
+    t0 = Dates.DateTime(2024, 1, 1, 0)
+    t1 = Dates.DateTime(2024, 1, 1, 2)
+    window1 = DataFrame(
+        DATETIME_COL => [t0 + Dates.Hour(i) for i in 0:3],
+        "Comp1" => [1.0, 2.0, 3.0, 4.0],
+    )
+    window2 = DataFrame(
+        DATETIME_COL => [t1 + Dates.Hour(i) for i in 0:3],
+        "Comp1" => [30.0, 40.0, 50.0, 60.0],
+    )
+    realized = [
+        t0,
+        t0 + Dates.Hour(1),
+        t1,
+        t1 + Dates.Hour(1),
+        t1 + Dates.Hour(2),
+        t1 + Dates.Hour(3),
+    ]
+    outputs = _FakeWindowedOutputs(Dict(t0 => window1, t1 => window2), realized)
+
+    expected = DataFrame(
+        DATETIME_COL => realized,
+        "Comp1" => [1.0, 2.0, 30.0, 40.0, 50.0, 60.0],
+    )
+    key = PowerAnalytics.ParameterName("SomeParam__ThermalStandard")
+    @test read_realized_key_wide(outputs, key) == expected
+end
