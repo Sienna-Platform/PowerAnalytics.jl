@@ -47,7 +47,7 @@ end
     dir = mktempdir(; cleanup = true)
     IOM.serialize_outputs(_make_test_outputs(test_lo_sys), dir)
     system_dir = joinpath(dir, IOM.make_system_dirname(PSY.get_system_uuid(test_lo_sys)))
-    PSY.to_file(test_lo_sys, system_dir; unit_system = :device_base)
+    PSY.to_file(test_lo_sys, system_dir)
     out = load_outputs(dir)
     loaded = IS.get_source_data(out)
     # Not a UUID comparison: an OpenAPI bundle is rebuilt with fresh UUIDs, so identity is

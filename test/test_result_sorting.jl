@@ -334,7 +334,7 @@ end
     # categorization. Every PSY.ThermalFuels value must now resolve via a
     # fuel-only fallback regardless of prime mover.
     mapping = PA.get_generator_mapping()
-    for fuel in instances(PSY.ThermalFuels)
+    for fuel in instances(PSY.ThermalFuels.Value)
         for pm in (PSY.PrimeMovers.OT, PSY.PrimeMovers.IC, PSY.PrimeMovers.ST)
             @test PA.get_generator_category(
                 PSY.ThermalStandard, string(fuel), pm, nothing, mapping,
