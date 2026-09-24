@@ -11,7 +11,7 @@ const PSY = PowerSystems
 const SSS = StorageSystemsSimulations
 const PSB = PowerSystemCaseBuilder
 
-output_folder = joinpath(@__DIR__, "_simulation_results_RTS")
+output_folder = joinpath(@__DIR__, "_simulation_outputs_RTS")
 rm(output_folder; recursive = true, force = true)
 mkpath(output_folder)
 

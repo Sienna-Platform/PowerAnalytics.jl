@@ -1,7 +1,7 @@
-# Parked for the psy6 port. Builds `run_test_sim`/`run_test_prob` on
-# `PSI.Simulation`/`SimulationSequence`/`get_decision_problem_results`, which have no
-# psy6 counterpart — there is no orchestration layer. Re-home against a rebuilt
-# single-`DecisionModel` fixture.
+# Parked for the psy6 port. `run_test_sim`/`run_test_prob` build `PSI.Simulation`/
+# `SimulationSequence`/`get_decision_problem_outputs`, which exist on PSI `jd/fix_tests` —
+# the blocker is PA's test env (sibling packages resolved by relative path) and a fixture
+# that needs rebuilding against them, not a missing PSI symbol.
 
 # Will be superseded by https://github.com/Sienna-Platform/PowerSystems.jl/issues/1143
 function linear_fuel_to_linear_cost(fc::FuelCurve{LinearCurve})
@@ -89,22 +89,22 @@ function add_re!(sys)
     add_component!(sys, batt)
 end
 
-function run_test_sim(result_dir::String, sim_name::String)
-    mkpath(result_dir)
-    sim_path = joinpath(result_dir, sim_name)
+function run_test_sim(output_dir::String, sim_name::String)
+    mkpath(output_dir)
+    sim_path = joinpath(output_dir, sim_name)
 
-    results = _try_load_simulation_results(sim_path)
-    if isnothing(results)
+    outputs = _try_load_simulation_outputs(sim_path)
+    if isnothing(outputs)
         if isdir(sim_path)
             rm(sim_path; recursive = true)
         end
-        results = _execute_simulation(result_dir, sim_name)
+        outputs = _execute_simulation(output_dir, sim_name)
     end
 
-    results_uc = get_decision_problem_results(results, "UC"; populate_system = true)
-    results_ed = get_decision_problem_results(results, "ED"; populate_system = true)
+    outputs_uc = get_decision_problem_outputs(outputs, "UC"; populate_system = true)
+    outputs_ed = get_decision_problem_outputs(outputs, "ED"; populate_system = true)
 
-    return results_uc, results_ed
+    return outputs_uc, outputs_ed
 end
 
 function _execute_simulation(base_path, sim_name)
@@ -136,7 +136,7 @@ function _execute_simulation(base_path, sim_name)
     set_service_model!(template_hydro_st_uc, VariableReserve{ReserveUp}, RangeReserve)
 
     # ED runs on a PTDF network with DC power flow evaluation in the loop so
-    # PowerAnalytics gets exercised on results that carry power-flow auxiliary
+    # PowerAnalytics gets exercised on outputs that carry power-flow auxiliary
     # variables (regression coverage for downstream issues that only surface
     # when the aux-variable codepath is populated).
     template_hydro_st_ed = ProblemTemplate(
@@ -205,10 +205,10 @@ function _execute_simulation(base_path, sim_name)
     )
     build!(sim)
     execute!(sim)
-    return SimulationResults(sim)
+    return SimulationOutputs(sim)
 end
 
-function _try_load_simulation_results(sim_path)
+function _try_load_simulation_outputs(sim_path)
     !isdir(sim_path) && return nothing
     # In PSI 0.34+, systems are stored in the data_store HDF5 file rather than as
     # separate JSON files. Check for the data_store directory as a proxy for a
@@ -217,13 +217,13 @@ function _try_load_simulation_results(sim_path)
     !isdir(data_store_path) && return nothing
 
     try
-        results = SimulationResults(sim_path)
+        outputs = SimulationOutputs(sim_path)
         # Verify both problems are available (will throw if not)
-        get_decision_problem_results(results, "UC")
-        get_decision_problem_results(results, "ED")
-        return results
+        get_decision_problem_outputs(outputs, "UC")
+        get_decision_problem_outputs(outputs, "ED")
+        return outputs
     catch e
-        @info "Failed to load the results from $sim_path. The results may be incomplete. $e"
+        @info "Failed to load the outputs from $sim_path. The outputs may be incomplete. $e"
     end
 
     return nothing
@@ -247,6 +247,6 @@ function run_test_prob()
     )
     build!(prob; output_dir = mktempdir())
     solve!(prob)
-    res = OptimizationProblemResults(prob)
-    return res
+    out = IOM.OptimizationProblemOutputs(prob)
+    return out
 end

@@ -156,7 +156,7 @@ Active tests: `test_builtin_component_selectors.jl`, `test_load_outputs.jl`,
 `test_realized_outputs.jl`, `test_compute_selectors.jl`, `test_calc_load_forecast.jl`.
 
 Parked in `DISABLED_TEST_FILES` (`test/setuptests.jl`) — they depend on the PSI `Simulation`
-fixture in `test/test_data/results_data.jl`, which psy6 has no equivalent for:
+fixture in `test/test_data/outputs_data.jl`, which psy6 has no equivalent for:
 `test_builtin_metrics.jl`, `test_input.jl`, `test_metrics.jl`, `test_result_sorting.jl`. They are
 kept on disk, not deleted. Several `test_result_sorting.jl` testsets have **zero** PSI dependency
 and could be re-enabled without a rebuilt fixture.

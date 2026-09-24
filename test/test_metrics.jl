@@ -1,86 +1,91 @@
-# Parked for the psy6 port. Depends on `run_test_sim`'s `PSI.Simulation` results and
-# `PSI.VariableKey`/`PSI.read_results_with_keys`, which have no psy6 counterpart. Re-home
-# against a rebuilt single-`DecisionModel` fixture using IOM's same-named key types.
+# Parked for the psy6 port. Depends on `run_test_sim`'s `PSI.Simulation` outputs — the
+# blocker is PA's test env and a fixture that needs rebuilding, not a missing PSI symbol.
+# Re-home against a rebuilt single-`DecisionModel` fixture using IOM's same-named key types
+# and `IOM.read_outputs_with_keys`.
 
-# LOAD RESULTS
-(results_uc, results_ed) = run_test_sim(TEST_RESULT_DIR, TEST_SIM_NAME)
-results_prob = run_test_prob()
-resultses = Dict("UC" => results_uc, "ED" => results_ed, "prob" => results_prob)
+# LOAD OUTPUTS
+(outputs_uc, outputs_ed) = run_test_sim(TEST_OUTPUT_DIR, TEST_SIM_NAME)
+outputs_prob = run_test_prob()
+outputs_by_name = Dict("UC" => outputs_uc, "ED" => outputs_ed, "prob" => outputs_prob)
 @assert all(
-    in.("ActivePowerVariable__ThermalStandard", list_variable_names.(values(resultses))),
-) "Expected all results to contain ActivePowerVariable__ThermalStandard"
+    in.(
+        "ActivePowerVariable__ThermalStandard",
+        list_variable_names.(values(outputs_by_name)),
+    ),
+) "Expected all outputs to contain ActivePowerVariable__ThermalStandard"
 
 # CONSTRUCT COMMON TEST RESOURCES
 "Calculate the active power output of the specified `ComponentSelector`"
 test_calc_active_power = ComponentTimedMetric(;
     name = "ActivePower",
-    eval_fn = (res::IS.Results, comp::Component;
+    eval_fn = (outputs::IS.Outputs, comp::Component;
         start_time::Union{Nothing, Dates.DateTime} = nothing,
         len::Union{Int, Nothing} = nothing) -> let
         key = PSI.VariableKey(ActivePowerVariable, typeof(comp))
-        res = PSI.read_results_with_keys(
-            res,
+        output_values = IOM.read_outputs_with_keys(
+            outputs,
             [key];
             start_time = start_time,
             len = len,
             table_format = IS.TableFormat.WIDE,
         )
-        first(values(res))[!, [DATETIME_COL, get_name(comp)]]
+        first(values(output_values))[!, [DATETIME_COL, get_name(comp)]]
     end,
 )
 
 "Calculate the production cost of the specified `ComponentSelector`"
 test_calc_production_cost = ComponentTimedMetric(;
     name = "ProductionCost",
-    eval_fn = (res::IS.Results, comp::Component;
+    eval_fn = (outputs::IS.Outputs, comp::Component;
         start_time::Union{Nothing, Dates.DateTime} = nothing,
         len::Union{Int, Nothing} = nothing) -> let
         key = PSI.ExpressionKey(ProductionCostExpression, typeof(comp))
-        res = PSI.read_results_with_keys(
-            res,
+        output_values = IOM.read_outputs_with_keys(
+            outputs,
             [key];
             start_time = start_time,
             len = len,
             table_format = IS.TableFormat.WIDE,
         )
-        first(values(res))[!, [DATETIME_COL, get_name(comp)]]
+        first(values(output_values))[!, [DATETIME_COL, get_name(comp)]]
     end,
 )
 
 "Calculate the system balance slack up"
 test_calc_system_slack_up = SystemTimedMetric(;
     name = "SystemSlackUp",
-    eval_fn = (res::IS.Results;
+    eval_fn = (outputs::IS.Outputs;
         start_time::Union{Nothing, Dates.DateTime} = nothing,
         len::Union{Int, Nothing} = nothing) -> let
         key = PSI.VariableKey(SystemBalanceSlackUp, System)
-        res = PSI.read_results_with_keys(
-            res,
+        output_values = IOM.read_outputs_with_keys(
+            outputs,
             [key];
             start_time = start_time,
             len = len,
             table_format = IS.TableFormat.WIDE,
         )
-        res = first(values(res))
+        df = first(values(output_values))
         # If there's more than a datetime column and a data column, we are misunderstanding
-        @assert size(res, 2) == 2
+        @assert size(df, 2) == 2
         return DataFrames.rename(
-            res,
-            findfirst(!=(DATETIME_COL), names(res)) => SYSTEM_COL,
+            df,
+            findfirst(!=(DATETIME_COL), names(df)) => SYSTEM_COL,
         )
     end,
 )
 
 "Sum the objective values achieved in the optimization problems"
-test_calc_sum_objective_value = ResultsTimelessMetric(
+test_calc_sum_objective_value = OutputsTimelessMetric(
     "SumObjectiveValue",
-    (res::IS.Results) -> sum(PSI.read_optimizer_stats(res)[!, "objective_value"]),
+    (outputs::IS.Outputs) ->
+        sum(PSI.read_optimizer_stats(outputs)[!, "objective_value"]),
 )
 
 "Sum the solve times taken by the optimization problems"
-test_calc_sum_solve_time = ResultsTimelessMetric(
+test_calc_sum_solve_time = OutputsTimelessMetric(
     "SumSolveTime",
-    (res::IS.Results) -> sum(PSI.read_optimizer_stats(res)[!, "solve_time"]),
+    (outputs::IS.Outputs) -> sum(PSI.read_optimizer_stats(outputs)[!, "solve_time"]),
 )
 
 thermal_vals = [1, 2, 3]
@@ -90,7 +95,7 @@ other_weights = [2, 1, 1]
 "Return some simple numbers with some simple metadata"
 test_calc_dummy_meta = ComponentTimedMetric(;
     name = "DummyMeta",
-    eval_fn = (res::IS.Results, comp::Component;
+    eval_fn = (outputs::IS.Outputs, comp::Component;
         start_time::Union{Nothing, Dates.DateTime} = nothing,
         len::Union{Int, Nothing} = nothing) -> let
         (start_time !== nothing && len !== nothing) &&
@@ -150,14 +155,14 @@ test_selectors = [wind_sel, solar_sel, thermal_sel]
 
 function _generate_comp_results()
     comp_results = Dict()
-    for (label, res) in pairs(resultses)
-        comps1 = collect(get_components(RenewableDispatch, get_system(res)))
-        comps2 = collect(get_components(ThermalStandard, get_system(res)))
+    for (label, outputs) in pairs(outputs_by_name)
+        comps1 = collect(get_components(RenewableDispatch, get_system(outputs)))
+        comps2 = collect(get_components(ThermalStandard, get_system(outputs)))
         for comp in vcat(comps1, comps2)
-            computed_alltime = compute(test_calc_active_power, res, comp)
+            computed_alltime = compute(test_calc_active_power, outputs, comp)
             test_start_time = computed_alltime[2, DATETIME_COL]
             test_len = 3
-            computed_sometime = compute(test_calc_active_power, res, comp;
+            computed_sometime = compute(test_calc_active_power, outputs, comp;
                 start_time = test_start_time, len = test_len)
             comp_results[(label, get_name(comp))] = (computed_alltime, computed_sometime)
         end
@@ -184,14 +189,14 @@ function test_generic_metric_helper(computed, met, data_colname)
     @test eltype(computed[!, data_colname]) <: Union{Missing, Number}  # TODO
 end
 
-function test_component_timed_metric(met, res, sel)
-    computed_alltime = compute(met, res, sel)
-    col_sel = (sel isa ComponentSelector) ? only(get_groups(sel, get_system(res))) : sel
+function test_component_timed_metric(met, outputs, sel)
+    computed_alltime = compute(met, outputs, sel)
+    col_sel = (sel isa ComponentSelector) ? only(get_groups(sel, get_system(outputs))) : sel
     test_timed_metric_helper(computed_alltime, met, get_name(col_sel))
 
     the_components =
         (sel isa Component) ? [sel] :
-        collect(get_components(sel, get_system(res)))
+        collect(get_components(sel, get_system(outputs)))
     @test all(
         get(colmetadata(computed_alltime, get_name(col_sel)), "components", nothing) .==
         the_components,
@@ -207,7 +212,7 @@ function test_component_timed_metric(met, res, sel)
     if length(the_components) > 0
         test_start_time = computed_alltime[2, DATETIME_COL]
         test_len = 3
-        computed_sometime = compute(met, res, sel;
+        computed_sometime = compute(met, outputs, sel;
             start_time = test_start_time, len = test_len)
         @test computed_sometime[1, DATETIME_COL] == test_start_time
         @test size(computed_sometime, 1) == test_len
@@ -218,25 +223,25 @@ function test_component_timed_metric(met, res, sel)
     return computed_alltime, computed_sometime
 end
 
-function test_system_timed_metric(met, res)
-    computed_alltime = compute(met, res)
+function test_system_timed_metric(met, outputs)
+    computed_alltime = compute(met, outputs)
     test_timed_metric_helper(computed_alltime, met, SYSTEM_COL)
-    @test compute(met, res, nothing) == computed_alltime
+    @test compute(met, outputs, nothing) == computed_alltime
 
     # Row tests, specified time
     test_start_time = computed_alltime[2, DATETIME_COL]
     test_len = 3
-    computed_sometime = compute(met, res; start_time = test_start_time, len = test_len)
+    computed_sometime = compute(met, outputs; start_time = test_start_time, len = test_len)
     @test computed_sometime[1, DATETIME_COL] == test_start_time
     @test size(computed_sometime, 1) == test_len
 
     return computed_alltime, computed_sometime
 end
 
-function test_results_timeless_metric(met, res)
-    computed = compute(met, res)
-    test_generic_metric_helper(computed, met, RESULTS_COL)
-    @test compute(met, res, nothing) == computed
+function test_outputs_timeless_metric(met, outputs)
+    computed = compute(met, outputs)
+    test_generic_metric_helper(computed, met, OUTPUTS_COL)
+    @test compute(met, outputs, nothing) == computed
     return computed
 end
 
@@ -351,23 +356,23 @@ end
 end
 
 @testset "Test ComponentTimedMetric on Components" begin
-    for (label, res) in pairs(resultses)
-        comps1 = collect(get_components(RenewableDispatch, get_system(res)))
-        comps2 = collect(get_components(ThermalStandard, get_system(res)))
+    for (label, outputs) in pairs(outputs_by_name)
+        comps1 = collect(get_components(RenewableDispatch, get_system(outputs)))
+        comps2 = collect(get_components(ThermalStandard, get_system(outputs)))
         for comp in vcat(comps1, comps2)
-            test_component_timed_metric(test_calc_active_power, res, comp)
+            test_component_timed_metric(test_calc_active_power, outputs, comp)
         end
     end
 end
 
 @testset "Test ComponentTimedMetric on SingularComponentSelectors" begin
-    for (label, res) in pairs(resultses)
+    for (label, outputs) in pairs(outputs_by_name)
         for sel in test_selectors
             computed_alltime, computed_sometime =
-                test_component_timed_metric(test_calc_active_power, res, sel)
+                test_component_timed_metric(test_calc_active_power, outputs, sel)
 
             # SingularComponentSelector results should be the same as Component results
-            component_name = get_name(first(get_components(sel, get_system(res))))
+            component_name = get_name(first(get_components(sel, get_system(outputs))))
             base_computed_alltime, base_computed_sometime =
                 comp_results[(label, component_name)]
             @test get_time_df(computed_alltime) == get_time_df(base_computed_alltime)
@@ -386,13 +391,13 @@ end
         make_selector(ThermalStandard; groupby = :all),
     ]
 
-    for (label, res) in pairs(resultses)
+    for (label, outputs) in pairs(outputs_by_name)
         for sel in test_selector_sets
             my_test_metric = test_calc_active_power
             computed_alltime, computed_sometime =
-                test_component_timed_metric(my_test_metric, res, sel)
+                test_component_timed_metric(my_test_metric, outputs, sel)
 
-            component_names = get_name.(get_components(sel, get_system(res)))
+            component_names = get_name.(get_components(sel, get_system(outputs)))
             if length(component_names) == 0
                 @test isequal(get_time_vec(computed_alltime),
                     Vector{Union{Missing, Dates.DateTime}}([missing]))
@@ -415,21 +420,21 @@ end
 end
 
 @testset "Test SystemTimedMetric" begin
-    # The relevant data only exists in the ED results
-    test_system_timed_metric(test_calc_system_slack_up, results_ed)
+    # The relevant data only exists in the ED outputs
+    test_system_timed_metric(test_calc_system_slack_up, outputs_ed)
 end
 
-@testset "Test ResultsTimelessMetric" begin
-    for (label, res) in pairs(resultses)
-        test_results_timeless_metric(test_calc_sum_objective_value, res)
+@testset "Test OutputsTimelessMetric" begin
+    for (label, outputs) in pairs(outputs_by_name)
+        test_outputs_timeless_metric(test_calc_sum_objective_value, outputs)
     end
 end
 
 @testset "Test compute with multiple columns" begin
     combo_selector = make_selector(test_selectors...)
     mymet = test_calc_active_power
-    for (label, res) in pairs(resultses)
-        computed_alltime = compute(mymet, res, combo_selector)
+    for (label, outputs) in pairs(outputs_by_name)
+        computed_alltime = compute(mymet, outputs, combo_selector)
         cols = get_data_cols(computed_alltime)
         sels = colmetadata.(Ref(computed_alltime), cols, "ComponentSelector")
         @test all(sels .== test_selectors)  # One column for each subselector in the input
@@ -438,7 +443,7 @@ end
         # TODO bit of code duplication between here and test_component_timed_metric
         test_start_time = computed_alltime[2, DATETIME_COL]
         test_len = 3
-        computed_sometime = compute(mymet, res, combo_selector;
+        computed_sometime = compute(mymet, outputs, combo_selector;
             start_time = test_start_time, len = test_len)
         @test computed_sometime[1, DATETIME_COL] == test_start_time
         @test size(computed_sometime, 1) == test_len
@@ -450,7 +455,7 @@ end
                 mymet,
                 col_name,
             )
-            this_components = collect(get_components(this_selector, get_system(res)))
+            this_components = collect(get_components(this_selector, get_system(outputs)))
             @test all(
                 get(colmetadata(computed_alltime, col_name), "components", nothing) .==
                 this_components,
@@ -469,21 +474,21 @@ end
 @testset "Test compute_all" begin
     my_metrics = [test_calc_active_power, test_calc_active_power,
         test_calc_production_cost, test_calc_production_cost]
-    my_component = first(get_components(RenewableDispatch, get_system(results_uc)))
+    my_component = first(get_components(RenewableDispatch, get_system(outputs_uc)))
     my_selectors =
         [make_selector(ThermalStandard; groupby = :all),
             make_selector(RenewableDispatch; groupby = :all),
             make_selector(ThermalStandard; groupby = :all),
             my_component]
-    all_result = compute_all(results_uc, my_metrics, my_selectors)
+    all_result = compute_all(outputs_uc, my_metrics, my_selectors)
 
     for (metric, selector) in zip(my_metrics, my_selectors)
-        one_result = compute(metric, results_uc, selector)
+        one_result = compute(metric, outputs_uc, selector)
         @test get_time_df(all_result) == get_time_df(one_result)
         @test all_result[!, metric_selector_to_string(metric, selector)] ==
               get_data_vec(one_result)
-        @test get(metadata(all_result), "results", nothing) ==
-              get(metadata(one_result), "results", nothing)
+        @test get(metadata(all_result), "outputs", nothing) ==
+              get(metadata(one_result), "outputs", nothing)
         # Comparing the components iterators with == gives false failures
         # TODO why do we need collect here but not in test_component_timed_metric?
         @test all(
@@ -509,47 +514,48 @@ end
     end
 
     my_names = ["Thermal Power", "Renewable Power", "Thermal Cost", "Renewable Cost"]
-    all_result_named = compute_all(results_uc, my_metrics, my_selectors, my_names)
+    all_result_named = compute_all(outputs_uc, my_metrics, my_selectors, my_names)
     @test names(all_result_named) == vcat(DATETIME_COL, my_names...)
     @test get_time_df(all_result_named) == get_time_df(all_result)
     @test get_data_mat(all_result_named) == get_data_mat(all_result)
 
-    @test_throws ArgumentError compute_all(results_uc, my_metrics, my_selectors[2:end])
-    @test_throws ArgumentError compute_all(results_uc, my_metrics, my_selectors,
+    @test_throws ArgumentError compute_all(outputs_uc, my_metrics, my_selectors[2:end])
+    @test_throws ArgumentError compute_all(outputs_uc, my_metrics, my_selectors,
         my_names[2:end])
 
-    for (label, res) in pairs(resultses)
-        @test compute_all(res, [test_calc_sum_objective_value, test_calc_sum_solve_time],
+    for (label, outputs) in pairs(outputs_by_name)
+        @test compute_all(outputs,
+            [test_calc_sum_objective_value, test_calc_sum_solve_time],
             nothing, ["Met1", "Met2"]) == DataFrame(
-            "Met1" => first(get_data_mat(compute(test_calc_sum_objective_value, res))),
-            "Met2" => first(get_data_mat(compute(test_calc_sum_solve_time, res))))
+            "Met1" => first(get_data_mat(compute(test_calc_sum_objective_value, outputs))),
+            "Met2" => first(get_data_mat(compute(test_calc_sum_solve_time, outputs))))
     end
 
     broadcasted_compute_all = compute_all(
-        results_uc,
+        outputs_uc,
         [test_calc_active_power, test_calc_active_power],
         make_selector(ThermalStandard; groupby = :all),
         ["discard", "ThermalStandard"],
     )
     @test broadcasted_compute_all[!, [DATETIME_COL, "ThermalStandard"]] ==
-          compute(test_calc_active_power, results_uc,
+          compute(test_calc_active_power, outputs_uc,
         make_selector(ThermalStandard; groupby = :all))
 
-    @test compute_all(results_uc, my_metrics, my_selectors, my_names) ==
-          compute_all(results_uc, collect(zip(my_metrics, my_selectors, my_names))...)
+    @test compute_all(outputs_uc, my_metrics, my_selectors, my_names) ==
+          compute_all(outputs_uc, collect(zip(my_metrics, my_selectors, my_names))...)
     @test compute_all(
-        results_uc,
+        outputs_uc,
         [test_calc_sum_objective_value, test_calc_sum_solve_time],
         nothing,
         ["obje", "solv"],
     ) == compute_all(
-        results_uc,
+        outputs_uc,
         (test_calc_sum_objective_value, nothing, "obje"),
         (test_calc_sum_solve_time, nothing, "solv"),
     )
 
     @test_throws MethodError compute_all(  # Can't mix TimedMetrics and TimelessMetrics
-        results_uc,
+        outputs_uc,
         [(test_calc_active_power, make_selector(ThermalStandard), "therm"),
             (test_calc_sum_objective_value, nothing, "obje")],
     )
@@ -567,7 +573,7 @@ end
         test_calc_active_power,
     )
     results1 = compute_all(
-        results_uc,
+        outputs_uc,
         [test_calc_active_power, mymet1],
         [mysel, mysel],
         ["once", "thrice"],
@@ -583,7 +589,7 @@ end
         test_calc_system_slack_up,
     )
     results2 = compute_all(
-        results_ed,
+        outputs_ed,
         [test_calc_system_slack_up, mymet2],
         nothing,
         ["once", "thrice"],
@@ -599,7 +605,7 @@ end
         test_calc_sum_objective_value,
     )
     results3 = compute_all(
-        results_uc,
+        outputs_uc,
         [test_calc_sum_objective_value, mymet3],
         nothing,
         ["once", "thrice"],
@@ -615,7 +621,7 @@ end
         test_calc_system_slack_up,
     )
     results4 = compute_all(
-        results_ed,
+        outputs_ed,
         [test_calc_system_slack_up, test_calc_active_power, mymet4],
         [nothing, mysel, mysel],
         ["slack", "power", "final"],
@@ -646,7 +652,7 @@ end
 @testset "Test component_agg_fn and corresponding `compute` aggregation behavior" begin
     # TODO broken for groupby = :each?
     my_selector = make_selector(ThermalStandard; groupby = :all)
-    my_results = results_uc
+    my_outputs = outputs_uc
     sum_metric = test_calc_active_power
     @test get_component_agg_fn(sum_metric) == sum  # Should be the default
     my_mean(x) = sum(x) / length(x)
@@ -655,19 +661,19 @@ end
     # NOTE a more thorough approach would test the getter and "with-er" on all subtypes
 
     results = compute_all(
-        my_results,
+        my_outputs,
         [sum_metric, mean_metric],
         [my_selector, my_selector],
         ["sum_col", "mean_col"],
     )
     @assert !all(results[!, "sum_col"] .== 0) "Cannot test with all-zero data"
-    n_components = get_components(my_selector, get_system(my_results)) |> collect |> length
+    n_components = get_components(my_selector, get_system(my_outputs)) |> collect |> length
     @assert n_components > 1 "Cannot test without multiple components"
 
     @test all(isapprox.(results[!, "mean_col"] .* n_components, results[!, "sum_col"]))
 
     results2 = compute_all(
-        my_results,
+        my_outputs,
         repeat([test_calc_dummy_meta], 3),
         [thermal_sel, wind_sel, make_selector(make_selector(thermal_sel, wind_sel))],
         ["thermal", "wind", "combo"])
@@ -684,14 +690,14 @@ end
 
 @testset "Test time_agg_fn and corresponding `aggregate_time` aggregation behavior" begin
     my_selector = make_selector(ThermalStandard; groupby = :all)
-    my_results = results_uc
+    my_outputs = outputs_uc
     sum_metric = test_calc_active_power
     @test get_time_agg_fn(sum_metric) == sum  # Should be the default
     mean_metric = rebuild_metric(sum_metric; time_agg_fn = mean)
     @test get_time_agg_fn(mean_metric) == mean
 
     results = compute_all(
-        my_results,
+        my_outputs,
         [sum_metric, mean_metric],
         [my_selector, my_selector],
         ["sum_col", "mean_col"],
@@ -705,7 +711,7 @@ end
     @test isapprox(first(results_agg[!, "mean_col"]), mean(results[!, "sum_col"]))
 
     results2 = compute_all(
-        my_results,
+        my_outputs,
         repeat([test_calc_dummy_meta], 3),
         [thermal_sel, wind_sel, make_selector(make_selector(thermal_sel, wind_sel))],
         ["thermal", "wind", "combo"])

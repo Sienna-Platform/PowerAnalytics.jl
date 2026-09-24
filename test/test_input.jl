@@ -1,16 +1,16 @@
-# Parked for the psy6 port. Depends on `PSI.Simulation`/`SimulationSequence`/
-# `get_decision_problem_results`, which have no psy6 counterpart — there is no
-# orchestration layer. Re-home against a rebuilt single-`DecisionModel` fixture.
+# Parked for the psy6 port. Calls PA's own `read_system_output` and
+# `create_problem_outputs_dict`, neither of which exists in PA — re-home once PA grows
+# those, against a rebuilt single-`DecisionModel` fixture.
 
-stock_decision_results_sets = run_test_sim(TEST_RESULT_DIR, TEST_SIM_NAME)
-stock_results_prob = run_test_prob()
+stock_decision_outputs_sets = run_test_sim(TEST_OUTPUT_DIR, TEST_SIM_NAME)
+stock_outputs_prob = run_test_prob()
 
-sim_results = SimulationResults(TEST_RESULT_DIR, TEST_SIM_NAME)
+sim_outputs = SimulationOutputs(TEST_OUTPUT_DIR, TEST_SIM_NAME)
 decision_problem_names = ("UC", "ED")
-my_results_sets = get_decision_problem_results.(Ref(sim_results), decision_problem_names)
+my_outputs_sets = get_decision_problem_outputs.(Ref(sim_outputs), decision_problem_names)
 
-(results_uc, results_ed) = stock_decision_results_sets
-resultses = Dict("UC" => results_uc, "ED" => results_ed, "prob" => stock_results_prob)
+(outputs_uc, outputs_ed) = stock_decision_outputs_sets
+outputs_by_name = Dict("UC" => outputs_uc, "ED" => outputs_ed, "prob" => stock_outputs_prob)
 
 # Reimplements Base.Filesystem.cptree since that isn't exported
 function cptree(src::String, dst::String)
@@ -25,28 +25,28 @@ function cptree(src::String, dst::String)
     end
 end
 
-# Create another results directory
-function setup_duplicate_results()
-    teardown_duplicate_results()
+# Create another outputs directory
+function setup_duplicate_outputs()
+    teardown_duplicate_outputs()
     cptree(
-        joinpath(TEST_RESULT_DIR, TEST_SIM_NAME),
-        joinpath(TEST_RESULT_DIR, TEST_DUPLICATE_RESULTS_NAME),
+        joinpath(TEST_OUTPUT_DIR, TEST_SIM_NAME),
+        joinpath(TEST_OUTPUT_DIR, TEST_DUPLICATE_OUTPUTS_NAME),
     )
 end
 
-function teardown_duplicate_results()
-    rm(joinpath(TEST_RESULT_DIR, TEST_DUPLICATE_RESULTS_NAME);
+function teardown_duplicate_outputs()
+    rm(joinpath(TEST_OUTPUT_DIR, TEST_DUPLICATE_OUTPUTS_NAME);
         force = true, recursive = true)
 end
 
-@testset "Test create_problem_results_dict" begin
-    setup_duplicate_results()
-    for (problem, stock_results) in zip(decision_problem_names, stock_decision_results_sets)
-        scenario_names = [TEST_SIM_NAME, TEST_DUPLICATE_RESULTS_NAME]
-        scenarios = create_problem_results_dict(TEST_RESULT_DIR, problem)
+@testset "Test create_problem_outputs_dict" begin
+    setup_duplicate_outputs()
+    for (problem, stock_outputs) in zip(decision_problem_names, stock_decision_outputs_sets)
+        scenario_names = [TEST_SIM_NAME, TEST_DUPLICATE_OUTPUTS_NAME]
+        scenarios = create_problem_outputs_dict(TEST_OUTPUT_DIR, problem)
         @test Set(keys(scenarios)) == Set(scenario_names)
-        scenarios = create_problem_results_dict(
-            TEST_RESULT_DIR,
+        scenarios = create_problem_outputs_dict(
+            TEST_OUTPUT_DIR,
             problem,
             scenario_names;
             populate_system = true,
@@ -60,21 +60,25 @@ end
         # docs/superpowers/specs/2026-05-18-results-time-series-recovery-design.md
         # @test IS.compare_values(
         #     get_system(scenarios[TEST_SIM_NAME]),
-        #     get_system(stock_results),
+        #     get_system(stock_outputs),
         # )
     end
-    teardown_duplicate_results()
+    teardown_duplicate_outputs()
 end
 
-@testset "Test read_component_result" begin
-    for res in values(resultses)
+@testset "Test read_component_output" begin
+    for output in values(outputs_by_name)
         entry = ActivePowerVariable
-        comp = get_component(ThermalStandard, get_system(res), "Solitude")
-        my_result = PA.read_component_result(res, entry, comp)
+        comp = get_component(ThermalStandard, get_system(output), "Solitude")
+        my_result = PA.read_component_output(output, entry, comp)
         key = PSI.VariableKey(entry, ThermalStandard)
         existing_result = only(
             values(
-                PSI.read_results_with_keys(res, [key]; table_format = IS.TableFormat.WIDE),
+                IOM.read_outputs_with_keys(
+                    output,
+                    [key];
+                    table_format = IS.TableFormat.WIDE,
+                ),
             ),
         )[
             !,
@@ -84,14 +88,14 @@ end
     end
 end
 
-@testset "Test read_system_result" begin
+@testset "Test read_system_output" begin
     entry = SystemBalanceSlackUp
-    my_result = PA.read_system_result(results_ed, entry)
+    my_result = PA.read_system_output(outputs_ed, entry)
     key = PSI.VariableKey(entry, System)
     existing_result = only(
         values(
-            PSI.read_results_with_keys(
-                results_ed,
+            IOM.read_outputs_with_keys(
+                outputs_ed,
                 [key];
                 table_format = IS.TableFormat.WIDE,
             ),
@@ -102,14 +106,14 @@ end
 end
 
 @testset "Test get_branch_data" begin
-    # results_ed runs a PTDF network with StaticBranch lines and in-loop DC power flow,
+    # outputs_ed runs a PTDF network with StaticBranch lines and in-loop DC power flow,
     # so it carries branch flow variables and/or PowerFlowBranch aux variables.
-    branch_data = PA.get_branch_data(results_ed)
+    branch_data = PA.get_branch_data(outputs_ed)
     @test branch_data isa PA.PowerData
     @test !isempty(branch_data.data)
 
     branch_names =
-        PSY.get_name.(PSY.get_components(PSY.ACBranch, PSI.get_system(results_ed)))
+        PSY.get_name.(PSY.get_components(PSY.ACBranch, PSI.get_system(outputs_ed)))
     for df in values(branch_data.data)
         @test "DateTime" in names(df)
         @test DataFrames.nrow(df) > 0
@@ -118,8 +122,8 @@ end
         @test all(in(branch_names), mapped)
     end
 
-    # results_uc is a CopperPlate model with no branch flows; the result is empty but valid.
-    @test PA.get_branch_data(results_uc) isa PA.PowerData
+    # outputs_uc is a CopperPlate model with no branch flows; the result is empty but valid.
+    @test PA.get_branch_data(outputs_uc) isa PA.PowerData
 end
 
 @testset "Test get_branch_data with AC power flow in the loop" begin
@@ -147,14 +151,14 @@ end
     @test build!(model; output_dir = mktempdir(; cleanup = true)) ==
           PSI.ModelBuildStatus.BUILT
     @test solve!(model) == PSI.RunStatus.SUCCESSFULLY_FINALIZED
-    ac_results = OptimizationProblemResults(model)
+    ac_outputs = IOM.OptimizationProblemOutputs(model)
 
-    @test isempty(PA.get_branch_variable_keys(ac_results))
-    aux_keys = PA.get_branch_aux_variable_keys(ac_results)
+    @test isempty(PA.get_branch_variable_keys(ac_outputs))
+    aux_keys = PA.get_branch_aux_variable_keys(ac_outputs)
     @test !isempty(aux_keys)
     @test PSI.PowerFlowBranchActivePowerFromTo in PSI.get_entry_type.(aux_keys)
 
-    branch_data = PA.get_branch_data(ac_results)
+    branch_data = PA.get_branch_data(ac_outputs)
     @test branch_data isa PA.PowerData
     # NOTE. written to current behavior. Only one aux variable per branch type is kept,
     # so to-from discarded.

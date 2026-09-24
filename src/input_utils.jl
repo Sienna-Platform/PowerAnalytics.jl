@@ -106,11 +106,11 @@ end
 
 """
 Fallback for any `IS.Outputs` that isn't `IOM.OptimizationProblemOutputs` (a PowerSimulations
-`Simulation`'s per-problem results, for instance): reduce the typed key to its encoded name
+`Simulation`'s per-problem outputs, for instance): reduce the typed key to its encoded name
 and re-dispatch through the `VariableName`/`AuxVariableName`/`ParameterName` methods below.
-This is what lets PowerAnalytics read from such a results type without PowerAnalytics
+This is what lets PowerAnalytics read from such an outputs type without PowerAnalytics
 depending on it — the type only needs to implement `IOM.read_variable`/`read_aux_variable`/
-`read_parameter` by name, which every `IS.Outputs` results type is expected to.
+`read_parameter` by name, which every `IS.Outputs` subtype is expected to.
 
 Not ambiguous with the `OptimizationProblemOutputs` method above: both take
 `::IOM.OptimizationContainerKey` for the second argument, so the two differ only in the
@@ -134,15 +134,15 @@ _as_named_key(key::IOM.OptimizationContainerKey, ::String) = error(
     "No named-key equivalent for $(typeof(key)) is defined, so it cannot be read from an " *
     "outputs type other than IOM.OptimizationProblemOutputs. Add a `VariableName`-style " *
     "wrapper and a `_as_named_key` method for it if this entry type needs to be readable " *
-    "from other results types.",
+    "from other outputs types.",
 )
 
 """
-Reduce a `read_variable`/`read_aux_variable`/`read_parameter` result to one flat wide
+Reduce a `read_variable`/`read_aux_variable`/`read_parameter` output to one flat wide
 `DataFrame`, honoring `read_key_wide`'s own contract regardless of outputs type.
 
 Most outputs types already return that shape directly. Some (a rolling-horizon
-`Simulation`'s per-problem results, for instance) instead return a per-window
+`Simulation`'s per-problem outputs, for instance) instead return a per-window
 `SortedDict{DateTime,DataFrame}` under `TableFormat.WIDE`, because consecutive windows
 overlap and only each window's non-overlapping prefix is realized — narrow, per-window data
 that `read_key_wide` has historically just handed back as-is, breaking every caller that

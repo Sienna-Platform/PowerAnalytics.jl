@@ -73,7 +73,7 @@ IOM.read_variable(outputs::_FakeRealizedOutputs, key::AbstractString; kwargs...)
 end
 
 """
-A test-local `IS.Outputs` mirroring a PowerSimulations `SimulationProblemResults`: its
+A test-local `IS.Outputs` mirroring a PowerSimulations `SimulationProblemOutputs`: its
 by-name `IOM.read_parameter` returns a `Dict{DateTime, DataFrame}` of overlapping,
 already-wide per-execution windows (2-hour interval, 4-hour horizon, hourly resolution).
 """

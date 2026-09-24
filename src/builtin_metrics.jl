@@ -184,8 +184,8 @@ const calc_load_forecast = ComponentTimedMetric(;
     name = "LoadForecast",
     # Load is negative power
     # NOTE if we had our own time-indexed dataframe type we could overload multiplication with a scalar and simplify this
-    eval_fn = (res::IS.Outputs, comp::Component; kwargs...) -> let
-        val = compute(calc_active_power_forecast, res, comp; kwargs...)
+    eval_fn = (out::IS.Outputs, comp::Component; kwargs...) -> let
+        val = compute(calc_active_power_forecast, out, comp; kwargs...)
         get_data_vec(val) .*= -1
         return val
     end,
@@ -194,8 +194,8 @@ const calc_load_forecast = ComponentTimedMetric(;
 "Fetch the forecast active load of all the [`ElectricLoad`](@extref PowerSystems.ElectricLoad) [`Component`](@extref PowerSystems.Component)s in the system"
 const calc_system_load_forecast = SystemTimedMetric(;
     name = "SystemLoadForecast",
-    eval_fn = (res::IS.Outputs; kwargs...) ->
-        compute(calc_load_forecast, res,
+    eval_fn = (out::IS.Outputs; kwargs...) ->
+        compute(calc_load_forecast, out,
             rebuild_selector(all_loads; groupby = :all); kwargs...),
 )
 
@@ -204,9 +204,9 @@ const calc_system_load_from_storage = let
     SystemTimedMetric(;
         name = "SystemLoadFromStorage",
         eval_fn = (
-            res::IS.Outputs; kwargs...
+            out::IS.Outputs; kwargs...
         ) ->
-            compute(calc_load_from_storage, res,
+            compute(calc_load_from_storage, out,
                 rebuild_selector(all_storage; groupby = :all); kwargs...),
     )
 end
@@ -229,12 +229,12 @@ const calc_curtailment = compose_metrics(
 const calc_curtailment_frac = ComponentTimedMetric(;
     name = "CurtailmentFrac",
     eval_fn = (
-        (res::IS.Outputs, comp::Component; kwargs...
+        (out::IS.Outputs, comp::Component; kwargs...
         ) -> let
-            result = compute(calc_curtailment, res, comp; kwargs...)
+            result = compute(calc_curtailment, out, comp; kwargs...)
             power = collect(
                 get_data_vec(
-                    compute(calc_active_power_forecast, res, comp; kwargs...),
+                    compute(calc_active_power_forecast, out, comp; kwargs...),
                 ),
             )
             get_data_vec(result) ./= power
@@ -245,20 +245,20 @@ const calc_curtailment_frac = ComponentTimedMetric(;
 )
 
 # Helper function for calc_integration
-_integration_denoms(res; kwargs...) =
-    compute(calc_system_load_forecast, res; kwargs...),
-    compute(calc_system_load_from_storage, res; kwargs...)
+_integration_denoms(out; kwargs...) =
+    compute(calc_system_load_forecast, out; kwargs...),
+    compute(calc_system_load_from_storage, out; kwargs...)
 
 "Calculate the `ActivePower` of the given `ComponentSelector` over the sum of the `SystemLoadForecast` and the `SystemLoadFromStorage`"
 const calc_integration = ComponentTimedMetric(;
     name = "Integration",
     eval_fn = (
-        (res::IS.Outputs, comp::Component; kwargs...
+        (out::IS.Outputs, comp::Component; kwargs...
         ) -> let
-            result = compute(calc_active_power, res, comp; kwargs...)
+            result = compute(calc_active_power, out, comp; kwargs...)
             # TODO does not check date alignment, maybe use hcat_timed_dfs
             denom = (.+)(
-                (_integration_denoms(res; kwargs...) .|> get_data_vec .|> collect)...,
+                (_integration_denoms(out; kwargs...) .|> get_data_vec .|> collect)...,
             )
             get_data_vec(result) ./= denom
             set_agg_meta!(result, denom)
@@ -267,8 +267,8 @@ const calc_integration = ComponentTimedMetric(;
     ), component_agg_fn = unweighted_sum, time_agg_fn = weighted_mean,
     component_meta_agg_fn = mean,
     # We use a custom eval_zero to put the weight in there even when there are no components
-    eval_zero = (res::IS.Outputs; kwargs...) -> let
-        denoms = _integration_denoms(res; kwargs...)
+    eval_zero = (out::IS.Outputs; kwargs...) -> let
+        denoms = _integration_denoms(out; kwargs...)
         # TODO does not check date alignment, maybe use hcat_timed_dfs
         time_col = get_time_vec(first(denoms))
         data_col = repeat([0.0], length(time_col))
@@ -282,8 +282,8 @@ const calc_capacity_factor = ComponentTimedMetric(;
     name = "CapacityFactor",
     # (intentionally done with forecast to serve as sanity check -- solar capacity factor shouldn't exceed 20%, etc.)
     eval_fn = (
-        (res::IS.Outputs, comp::Component; kwargs...) -> let
-            result = compute(calc_active_power_forecast, res, comp; kwargs...)
+        (out::IS.Outputs, comp::Component; kwargs...) -> let
+            result = compute(calc_active_power_forecast, out, comp; kwargs...)
             rating = PSY.get_rating(comp, PSY.NU)
             get_data_vec(result) ./= rating
             set_agg_meta!(result, repeat([rating], length(get_data_vec(result))))
@@ -296,8 +296,8 @@ const calc_capacity_factor = ComponentTimedMetric(;
 const calc_startup_cost = ComponentTimedMetric(;
     name = "StartupCost",
     eval_fn = (
-        (res::IS.Outputs, comp::Component; kwargs...) -> let
-            val = read_component_output(res, IOM.StartVariable, comp; kwargs...)
+        (out::IS.Outputs, comp::Component; kwargs...) -> let
+            val = read_component_output(out, IOM.StartVariable, comp; kwargs...)
             start_cost = PSY.get_start_up(PSY.get_operation_cost(comp))
             get_data_vec(val) .*= start_cost
             return val
@@ -309,8 +309,8 @@ const calc_startup_cost = ComponentTimedMetric(;
 const calc_shutdown_cost = ComponentTimedMetric(;
     name = "ShutdownCost",
     eval_fn = (
-        (res::IS.Outputs, comp::Component; kwargs...) -> let
-            val = read_component_output(res, IOM.StopVariable, comp; kwargs...)
+        (out::IS.Outputs, comp::Component; kwargs...) -> let
+            val = read_component_output(out, IOM.StopVariable, comp; kwargs...)
             stop_cost = PSY.get_shut_down(PSY.get_operation_cost(comp))
             get_data_vec(val) .*= stop_cost
             return val
@@ -335,8 +335,8 @@ const calc_discharge_cycles = ComponentTimedMetric(;
     # the minimum state of charge. A simpler algorithm might define a cycle as a discharge
     # from the maximum state of charge to zero; the algorithm given here is more rigorous.
     eval_fn = (
-        (res::IS.Outputs, comp::Component; kwargs...) -> let
-            val = read_component_output(res, IOM.ActivePowerOutVariable, comp; kwargs...)
+        (out::IS.Outputs, comp::Component; kwargs...) -> let
+            val = read_component_output(out, IOM.ActivePowerOutVariable, comp; kwargs...)
             soc_limits = PSY.get_storage_level_limits(comp)
             soc_range =
                 PSY.get_storage_capacity(comp, PSY.NU) * (soc_limits.max - soc_limits.min)
@@ -384,25 +384,25 @@ const DEFAULT_SLACK_UP_THRESHOLD = 1e-4
 const calc_is_slack_up = make_calc_is_slack_up(DEFAULT_SLACK_UP_THRESHOLD)
 
 # TODO caching here too
-make_results_metric_from_sum_optimizer_stat(
+make_outputs_metric_from_sum_optimizer_stat(
     name::String,
     stats_key::String) = OutputsTimelessMetric(
     name,
-    (res::IS.Outputs) -> sum(IOM.read_optimizer_stats(res)[!, stats_key]),
+    (out::IS.Outputs) -> sum(IOM.read_optimizer_stats(out)[!, stats_key]),
 )
 
 "Sum the objective values achieved in the optimization problems"
-const calc_sum_objective_value = make_results_metric_from_sum_optimizer_stat(
+const calc_sum_objective_value = make_outputs_metric_from_sum_optimizer_stat(
     "SumObjectiveValue",
     "objective_value")
 
 "Sum the solve times taken by the optimization problems"
-const calc_sum_solve_time = make_results_metric_from_sum_optimizer_stat(
+const calc_sum_solve_time = make_outputs_metric_from_sum_optimizer_stat(
     "SumSolveTime",
     "solve_time")
 
 "Sum the bytes allocated to the optimization problems"
-const calc_sum_bytes_alloc = make_results_metric_from_sum_optimizer_stat(
+const calc_sum_bytes_alloc = make_outputs_metric_from_sum_optimizer_stat(
     "SumBytesAlloc",
     "solve_bytes_alloc")
 end

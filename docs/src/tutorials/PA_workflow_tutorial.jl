@@ -2,7 +2,7 @@
 #
 # ## System
 #
-# In this tutorial, we post-process the simulation results of the Reliability Test System Grid Modernization Lab Consortium ([RTS-GMLC](https://github.com/GridMod/RTS-GMLC)) system ([DOI: 10.1109/TPWRS.2019.2925557](https://doi.org/10.1109/TPWRS.2019.2925557)), which is an updated version of the [RTS-96](https://ieeexplore.ieee.org/document/780914?arnumber=780914&tag=1) with an artificial location situated on an area that covers parts of California, Nevada and Arizona in the southwestern United States.
+# In this tutorial, we post-process the simulation outputs of the Reliability Test System Grid Modernization Lab Consortium ([RTS-GMLC](https://github.com/GridMod/RTS-GMLC)) system ([DOI: 10.1109/TPWRS.2019.2925557](https://doi.org/10.1109/TPWRS.2019.2925557)), which is an updated version of the [RTS-96](https://ieeexplore.ieee.org/document/780914?arnumber=780914&tag=1) with an artificial location situated on an area that covers parts of California, Nevada and Arizona in the southwestern United States.
 #
 # The RTS-GMLC test system consists of:
 #
@@ -21,7 +21,7 @@
 #
 # ## Simulation Scenarios
 #
-# We have obtained simulation results for the following two simulation scenarios:
+# We have obtained simulation outputs for the following two simulation scenarios:
 #
 #   - **Scenario 1**: simulation using the RTS-GMLC test system without any additional modifications (baseline scenario)
 #
@@ -45,11 +45,11 @@
 #
 #     More information regarding the different formulations can be found in the [`PowerSimulations.jl` Formulation Library](https://sienna-platform.github.io/PowerSimulations.jl/stable/formulation_library/Introduction/).
 #
-# We document the above here for completeness, since those will directly define the structure of the optimization problem and consequently its auxiliary variables, expressions, parameters and variables for which realized result values are available.
+# We document the above here for completeness, since those will directly define the structure of the optimization problem and consequently its auxiliary variables, expressions, parameters and variables for which realized output values are available.
 #
 # The script that was used to configure and execute the simulation scenarios referenced above can be found [here](https://github.com/Sienna-Platform/PowerAnalytics.jl/tree/main/docs/src/tutorials/_run_scenarios_RTS_Tutorial.jl).
 #
-# ## Loading Simulation Scenario Results
+# ## Loading Simulation Scenario Outputs
 #
 # We begin by loading all the necessary Julia packages.
 
@@ -64,25 +64,25 @@ using Plots
 using PowerAnalytics
 using PowerAnalytics.Metrics
 
-# To begin our analysis, we first specify the directory where the simulation results are stored. In our case, the results of both simulation scenarios have been saved in the following directory:
+# To begin our analysis, we first specify the directory where the simulation outputs are stored. In our case, the outputs of both simulation scenarios have been saved in the following directory:
 
-results_dir = pkgdir(PowerAnalytics, "docs", "src", "tutorials", "_simulation_results_RTS")
+outputs_dir = pkgdir(PowerAnalytics, "docs", "src", "tutorials", "_simulation_outputs_RTS")
 
-# Once we have defined the directory containing our simulation results, the next step is to load them into a structured format for our analysis.
+# Once we have defined the directory containing our simulation outputs, the next step is to load them into a structured format for our analysis.
 #
-# [`create_problem_results_dict`](@ref) facilitates this by constructing a dictionary where each key corresponds to a scenario name.
+# [`create_problem_outputs_dict`](@ref) facilitates this by constructing a dictionary where each key corresponds to a scenario name.
 #
-# We also specify `"UC"`, which corresponds to the name we assigned when creating the [`DecisionModel`](@extref) and refers to the results of the unit commitment simulation. The `populate_system=true` argument ensures that the system model is attached to the results.
+# We also specify `"UC"`, which corresponds to the name we assigned when creating the [`DecisionModel`](@extref) and refers to the outputs of the unit commitment simulation. The `populate_system=true` argument ensures that the system model is attached to the outputs.
 
-results_all = create_problem_results_dict(results_dir, "UC"; populate_system = true)
+all_outputs = create_problem_outputs_dict(outputs_dir, "UC"; populate_system = true)
 
-# ## Single Scenario Results
+# ## Single Scenario Outputs
 #
-# In this section of the tutorial, we focus on the results of a single simulation scenario. Since the `results_all` dictionary contains entries for multiple scenarios, we can extract the results for a particular one using its name:
+# In this section of the tutorial, we focus on the outputs of a single simulation scenario. Since the `all_outputs` dictionary contains entries for multiple scenarios, we can extract the outputs for a particular one using its name:
 
-results_uc = results_all["Scenario_1"]
+outputs_uc = all_outputs["Scenario_1"]
 
-# Notice that in the output, the names of the realized auxiliary variables, problem expressions, problem parameters, and problem variables available in the results are all listed.
+# Notice that in the output, the names of the realized auxiliary variables, problem expressions, problem parameters, and problem variables available in the outputs are all listed.
 #
 # ### Obtain the generation time series for each individual thermal component of the system
 #
@@ -92,9 +92,9 @@ results_uc = results_all["Scenario_1"]
 
 thermal_standard_selector = make_selector(ThermalStandard)
 
-#  2. Calculate the active power for the corresponding generators of this type using one of `PowerAnalytics.jl` defined metrics, namely [`calc_active_power`](@ref PowerAnalytics.Metrics.calc_active_power), which retrieves the generation time series from the results.
+#  2. Calculate the active power for the corresponding generators of this type using one of `PowerAnalytics.jl` defined metrics, namely [`calc_active_power`](@ref PowerAnalytics.Metrics.calc_active_power), which retrieves the generation time series from the outputs.
 
-df = calc_active_power(thermal_standard_selector, results_uc);
+df = calc_active_power(thermal_standard_selector, outputs_uc);
 show(df; allcols = true)
 
 # Notice that in the resulting dataframe, each column represents the time series of an individual component. This behavior follows from the default settings of [`make_selector`](@extref InfrastructureSystems.make_selector), since we have not specified any additional arguments to modify the default grouping.
@@ -116,7 +116,7 @@ thermal_standard_selector_pm =
 
 # Once we have this new [`ComponentSelector`](@extref InfrastructureSystems.ComponentSelector), we use the same metric defined in the previous subsection to compute the aggregated generation time series for each unique `prime_mover_type`.
 
-calc_active_power(thermal_standard_selector_pm, results_uc)
+calc_active_power(thermal_standard_selector_pm, outputs_uc)
 
 # ### Identify the day of the week with the highest total thermal generation across the entire system
 #
@@ -128,7 +128,7 @@ thermal_standard_selector_sys = make_selector(ThermalStandard; groupby = :all)
 #
 # The resulting dataframe contains the single time series representing the total thermal generation across all thermal generators in the system.
 
-sys_active_power = calc_active_power(thermal_standard_selector_sys, results_uc)
+sys_active_power = calc_active_power(thermal_standard_selector_sys, outputs_uc)
 
 # Since our goal is to compare generation values across the days of the week, we perform a temporal aggregation using [`aggregate_time`](@ref). By passing `groupby_fn = dayofweek` as an argument, we group the data by day of the week (where 1= Monday, 2 = Tuesday, etc.), summing the total MWh generated on each weekday across the dataset.
 
@@ -147,7 +147,7 @@ storage_area_selector =
 
 # Next, using the [`ComponentSelector`](@extref InfrastructureSystems.ComponentSelector) we created, we compute the total active power flowing into the storage components of each [`Area`](@extref) using [`calc_active_power_in`](@ref PowerAnalytics.Metrics.calc_active_power_in), which is another one of `PowerAnalytics.jl` built-in metrics.
 
-df_charging = calc_active_power_in(storage_area_selector, results_uc)
+df_charging = calc_active_power_in(storage_area_selector, outputs_uc)
 
 # We observe that the resulting dataframe has only a single column for Area "3". This is due to the fact that the RTS-GMLC test system contains only a single storage component, which is located in Area "3".
 #
@@ -172,7 +172,7 @@ end
 #
 # We can reuse the `storage_area_selector` defined in the previous subsection to perform spatial aggregation by [`Area`](@extref). However, since we need to guarantee that each of the three metrics contributes only a single column to the resulting summary table, we'll adjust the selector's grouping using [`rebuild_selector`](@extref InfrastructureSystems.rebuild_selector-Tuple{InfrastructureSystems.ListComponentSelector}) to aggregate the time series across all storage components in the system, rather than by [`Area`](@extref).
 
-df = compute_all(results_uc,
+df = compute_all(outputs_uc,
     (
         calc_active_power_in,
         rebuild_selector(storage_area_selector; groupby = :all),
@@ -191,9 +191,9 @@ df = compute_all(results_uc,
 );
 show(df; allcols = true)
 
-# ## Multiple Scenarios' Results
+# ## Multiple Scenarios' Outputs
 #
-# In this section, instead of focusing on a single simulation scenario, we compare results across multiple scenarios. This allows us to explore how changing system component parameters can influence the simulation results.
+# In this section, instead of focusing on a single simulation scenario, we compare results across multiple scenarios. This allows us to explore how changing system component parameters can influence the simulation outputs.
 #
 # We begin by creating two new selectors, which aggregate the results for all [`RenewableDispatch`](@extref) and [`EnergyReservoirStorage`](@extref) components respectively.
 
@@ -239,10 +239,10 @@ timeless_names = ["Objective Value", "Solve Time (s)", "Memory Allocated"];
 #
 #   - `save_one`: saves the outputs from `analyze_one` to disk
 
-function analyze_one(results)
-    time_series_analytics = compute_all(results, time_computations...)
+function analyze_one(outputs)
+    time_series_analytics = compute_all(outputs, time_computations...)
     aggregated_time = aggregate_time(time_series_analytics)
-    computed_all = compute_all(results, timeless_computations, nothing, timeless_names)
+    computed_all = compute_all(outputs, timeless_computations, nothing, timeless_names)
     all_time_analytics = hcat(aggregated_time, computed_all)
     return time_series_analytics, all_time_analytics
 end
@@ -254,12 +254,16 @@ end
 
 # Finally, we define the main post-processing routine that runs across all scenarios. After processing all scenarios, it concatenates the summaries into a single dataframe, which also gets exported to a csv file.
 
-function post_processing(all_results)
+function post_processing(all_outputs)
     summaries = DataFrame[]
-    for (scenario_name, results) in pairs(all_results)
+    for (scenario_name, outputs) in pairs(all_outputs)
         println("Computing for scenario: ", scenario_name)
-        (time_series_analytics, all_time_analytics) = analyze_one(results)
-        save_one(results.results_output_folder, time_series_analytics, all_time_analytics)
+        (time_series_analytics, all_time_analytics) = analyze_one(outputs)
+        save_one(
+            PowerSimulations.get_output_dir(outputs),
+            time_series_analytics,
+            all_time_analytics,
+        )
         push!(summaries, hcat(DataFrame("Scenario" => scenario_name), all_time_analytics))
     end
 
@@ -268,9 +272,9 @@ function post_processing(all_results)
     return summaries_df
 end
 
-# We run the `post_processing` routine with our multi-scenario results we previously defined. We can see the final summary table including all scenarios below:
+# We run the `post_processing` routine with our multi-scenario outputs we previously defined. We can see the final summary table including all scenarios below:
 
-df = post_processing(results_all);
+df = post_processing(all_outputs);
 show(df; allcols = true)
 
 # Looking at the final dataframe, we can now easily compare the aggregated results of the selected metrics between the two simulation scenarios.

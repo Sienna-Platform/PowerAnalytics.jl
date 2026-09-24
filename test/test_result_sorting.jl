@@ -1,12 +1,12 @@
-# Parked for the psy6 port. Depends on `run_test_sim`'s `PSI.Simulation` results and
+# Parked for the psy6 port. Depends on `run_test_sim`'s `PSI.Simulation` outputs and
 # `PowerSimulations.VariableKey`/`ParameterKey`, which have no psy6 counterpart. Re-home
 # against a rebuilt single-`DecisionModel` fixture using IOM's same-named key types.
 
-(results_uc, results_ed) = run_test_sim(TEST_RESULT_DIR, TEST_SIM_NAME)
-problem_results = run_test_prob()
+(outputs_uc, outputs_ed) = run_test_sim(TEST_OUTPUT_DIR, TEST_SIM_NAME)
+problem_outputs = run_test_prob()
 
 @testset "test filter results" begin
-    gen = PA.get_generation_data(results_uc; curtailment = false)
+    gen = PA.get_generation_data(outputs_uc; curtailment = false)
     @test keys(gen.data) == Set([
         :ActivePowerVariable__HydroTurbine,
         :ActivePowerOutVariable__EnergyReservoirStorage,
@@ -19,7 +19,7 @@ problem_results = run_test_prob()
     @test length(gen.time) == 48
 
     gen = PA.get_generation_data(
-        results_uc;
+        outputs_uc;
         variable_keys = [
             PowerSimulations.VariableKey{ActivePowerVariable, ThermalStandard}(""),
             PowerSimulations.VariableKey{ActivePowerVariable, RenewableDispatch}(""),
@@ -35,13 +35,13 @@ problem_results = run_test_prob()
     @test length(gen.data) == 3
     @test length(gen.time) == 3
 
-    load = PA.get_load_data(results_ed)
+    load = PA.get_load_data(outputs_ed)
     @test length(load.data) == 1
     @test length(load.time) == 48
     @test !any(Matrix(PA.no_datetime(load.data[:Load])) .< 0.0)
 
     load = PA.get_load_data(
-        results_ed;
+        outputs_ed;
         parameter_keys = [
             PowerSimulations.ParameterKey{ActivePowerTimeSeriesParameter, PowerLoad}(""),
         ],
@@ -52,14 +52,14 @@ problem_results = run_test_prob()
     @test length(load.time) == 3
     @test !any(Matrix(PA.no_datetime(load.data[:Load])) .< 0.0)
 
-    srv = PA.get_service_data(results_ed)
+    srv = PA.get_service_data(outputs_ed)
     @test length(srv.data) == 0
 
-    srv = PA.get_service_data(results_uc)
+    srv = PA.get_service_data(outputs_uc)
     @test length(srv.data) == 1
 
     srv = PA.get_service_data(
-        results_uc;
+        outputs_uc;
         variable_keys = [
             PowerSimulations.VariableKey{
                 ActivePowerReserveVariable,
@@ -76,7 +76,7 @@ problem_results = run_test_prob()
 
     # TODO: make tests for subsetting data
     sub_gen =
-        get_generation_data(results_uc; filter_func = x -> get_name(get_bus(x)) == "bus1")
+        get_generation_data(outputs_uc; filter_func = x -> get_name(get_bus(x)) == "bus1")
     @test length(sub_gen.data) == 8
 end
 
@@ -97,20 +97,20 @@ end
 
 @testset "test curtailment calculations" begin
     curtailment_params = PA._curtailment_parameters(
-        PA.get_generation_parameter_keys(results_uc),
-        PA.get_generation_variable_keys(results_uc),
+        PA.get_generation_parameter_keys(outputs_uc),
+        PA.get_generation_variable_keys(outputs_uc),
     )
     @test length(curtailment_params) == 1
 
     curtailment_params = PA._curtailment_parameters(
-        PA.get_generation_parameter_keys(problem_results),
-        PA.get_generation_variable_keys(problem_results),
+        PA.get_generation_parameter_keys(problem_outputs),
+        PA.get_generation_variable_keys(problem_outputs),
     )
     @test length(curtailment_params) == 1
 end
 
 @testset "test data aggregation" begin
-    gen = PA.get_generation_data(results_uc)
+    gen = PA.get_generation_data(outputs_uc)
 
     # `make_fuel_dictionary` categorizes generators and storage only. Loads have
     # no fuel and are handled by a separate path (`get_load_data` /
@@ -120,7 +120,7 @@ end
     # The test system's natural-gas units have the CT prime mover, which maps to
     # NG-CC (the combustion-turbine half of a decomposed combined-cycle plant),
     # so there is no NG-CT category here.
-    cat = PA.make_fuel_dictionary(results_uc.system)
+    cat = PA.make_fuel_dictionary(outputs_uc.system)
     @test keys(cat) ==
           Set(["Coal", "Wind", "Hydropower", "NG-CC", "Storage", "PV"])
 

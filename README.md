@@ -6,7 +6,7 @@
 [<img src="https://img.shields.io/badge/slack-@Sienna/PG-sienna.svg?logo=slack">](https://join.slack.com/t/core-sienna/shared_invite/zt-glam9vdu-o8A9TwZTZqqNTKHa7q3BpQ)
 [![PowerAnalytics Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/PowerAnalytics)](https://pkgs.genieframework.com?packages=PowerAnalytics)
 
-PowerAnalytics.jl is a Julia package that contains analytic routines for power system simulation results in the Sienna ecosystem, specifically from [PowerSimulations.jl](https://github.com/Sienna-Platform/PowerSimulations.jl).
+PowerAnalytics.jl is a Julia package that contains analytic routines for power system simulation outputs in the Sienna ecosystem, specifically from [PowerSimulations.jl](https://github.com/Sienna-Platform/PowerSimulations.jl).
 
 ## Installation
 
@@ -22,7 +22,7 @@ pkg> add PowerAnalytics
 ```julia
 using PowerAnalytics
 using PowerSystems
-# where "res" is a PowerSimulations.SimulationResults object
+# where "res" is a problem's SimulationProblemOutputs, e.g. from get_decision_problem_outputs
 renewable_generation = calc_active_power(make_selector(RenewableGen), res)
 ```
 

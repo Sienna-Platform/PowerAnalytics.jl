@@ -193,7 +193,7 @@ my_computations = [
     (calc_active_power, make_selector(ThermalStandard; groupby = :all), "thermal_power"),
     (calc_curtailment, make_selector(RenewableDispatch; groupby = :all), "renewable_curtailment")
 ]
-my_8760 = compute_all(results, my_computations...)
+my_8760 = compute_all(outputs, my_computations...)
 # Now (given a certain simulation setup) `my_8760` is an 8760x3 DataFrame
 # with columns `$DATETIME_COL`, `thermal_power`, and `renewable_curtailment`
 
