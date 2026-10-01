@@ -40,3 +40,42 @@ end
     @test Set(keys(first(parse_generator_mapping_file(PA.FUEL_TYPES_DATA_FILE)))) ==
           Set(keys(injector_categories))
 end
+
+@testset "Each component is in at most one generator-mapping category" begin
+    sys = deepcopy(test_sys)
+    thermals = collect(get_components(ThermalStandard, sys))
+    # A natural gas unit with a specific prime mover matches both its prime mover rule and
+    # the fuel-only fallback rule; only the more specific one may select it
+    set_fuel!(thermals[1], ThermalFuels.NATURAL_GAS)
+    set_prime_mover_type!(thermals[1], PrimeMovers.CC)
+    # A natural gas unit with an unlisted prime mover falls back to the fuel-only rule
+    set_fuel!(thermals[2], ThermalFuels.NATURAL_GAS)
+    set_prime_mover_type!(thermals[2], PrimeMovers.IC)
+
+    in_category(name, comp) =
+        comp in collect(get_components(injector_categories[name], sys))
+    @test in_category("NG-CC", thermals[1])
+    @test !in_category("NG-Steam", thermals[1])
+    @test in_category("NG-Steam", thermals[2])
+    @test !in_category("NG-CC", thermals[2])
+
+    memberships = Dict{Component, Vector{String}}()
+    for (name, selector) in injector_categories, comp in get_components(selector, sys)
+        push!(get!(memberships, comp) do
+                String[]
+            end, name)
+    end
+    @test !isempty(memberships)
+    @test all(length(v) == 1 for v in values(memberships))
+end
+
+@testset "A repeated generator-mapping rule is rejected" begin
+    dir = mktempdir()
+    rule = "  - {gentype: ThermalStandard, fuel: COAL}\n"
+    across = joinpath(dir, "across.yaml")
+    write(across, "CoalA:\n" * rule * "CoalB:\n" * rule)
+    @test_throws ArgumentError parse_generator_mapping_file(across)
+    within = joinpath(dir, "within.yaml")
+    write(within, "Coal:\n" * rule * rule)
+    @test_throws ArgumentError parse_generator_mapping_file(within)
+end
