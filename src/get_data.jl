@@ -415,7 +415,8 @@ optionally including storage, sources, and curtailment columns.
  - `filter_func::Union{Function, Nothing} = nothing`: component filter applied when
    selecting columns; `nothing` keeps all available components
  - `initial_time` / `start_time`: start of the realized window (default: results metadata)
- - `horizon` / `len`: number of time steps to read
+ - `horizon` / `len`: number of time steps to read, or a period that is a whole multiple
+   of the results resolution
  - `variable_keys`, `parameter_keys`, `aux_variable_keys`: override which optimization
    container keys are considered
  - `curtailment::Bool = true`: include curtailment columns when parameters allow
@@ -439,7 +440,7 @@ function get_generation_data(
     kwargs...,
 ) where {R <: IS.Results}
     initial_time = get(kwargs, :initial_time, get(kwargs, :start_time, nothing))
-    len = get(kwargs, :horizon, get(kwargs, :len, nothing))
+    len = _horizon_len(results, get(kwargs, :horizon, get(kwargs, :len, nothing)))
     variable_keys = get(kwargs, :variable_keys, PSI.list_variable_keys(results))
     parameter_keys = get(kwargs, :parameter_keys, PSI.list_parameter_keys(results))
     aux_variable_keys = get(kwargs, :aux_variable_keys, PSI.list_aux_variable_keys(results))
@@ -531,7 +532,8 @@ Extract load time series from simulation `results` into a [`PowerData`](@ref).
 # Keyword Arguments
  - `filter_func::Union{Function, Nothing} = nothing`: component filter for columns
  - `initial_time` / `start_time`: start of the realized window
- - `horizon` / `len`: number of time steps to read
+ - `horizon` / `len`: number of time steps to read, or a period that is a whole multiple
+   of the results resolution
  - `variable_keys`, `parameter_keys`, `aux_variable_keys`: override optimization
    container keys considered for load
 
@@ -547,7 +549,7 @@ function get_load_data(
     kwargs...,
 ) where {R <: IS.Results}
     initial_time = get(kwargs, :initial_time, get(kwargs, :start_time, nothing))
-    len = get(kwargs, :horizon, get(kwargs, :len, nothing))
+    len = _horizon_len(results, get(kwargs, :horizon, get(kwargs, :len, nothing)))
     variable_keys = get(kwargs, :variable_keys, PSI.list_variable_keys(results))
     parameter_keys = get(kwargs, :parameter_keys, PSI.list_parameter_keys(results))
     aux_variable_keys = get(kwargs, :aux_variable_keys, PSI.list_aux_variable_keys(results))
@@ -706,7 +708,8 @@ Extract ancillary-service variable time series from `results` into a [`PowerData
 # Keyword Arguments
  - `filter_func::Union{Function, Nothing} = nothing`: component filter for columns
  - `initial_time` / `start_time`: start of the realized window
- - `horizon` / `len`: number of time steps to read
+ - `horizon` / `len`: number of time steps to read, or a period that is a whole multiple
+   of the results resolution
  - `variable_keys`: override which service variable keys are read
 
 # Returns
@@ -720,7 +723,7 @@ function get_service_data(
     kwargs...,
 ) where {R <: IS.Results}
     initial_time = get(kwargs, :initial_time, get(kwargs, :start_time, nothing))
-    len = get(kwargs, :horizon, get(kwargs, :len, nothing))
+    len = _horizon_len(results, get(kwargs, :horizon, get(kwargs, :len, nothing)))
     variable_keys = get(kwargs, :variable_keys, PSI.list_variable_keys(results))
     #parameter_keys = get(kwargs, :parameter_keys, PSI.list_parameter_keys(results))
 
@@ -760,7 +763,7 @@ function get_branch_data(
     kwargs...,
 ) where {R <: IS.Results}
     initial_time = get(kwargs, :initial_time, get(kwargs, :start_time, nothing))
-    len = get(kwargs, :horizon, get(kwargs, :len, nothing))
+    len = _horizon_len(results, get(kwargs, :horizon, get(kwargs, :len, nothing)))
     variable_keys = get(kwargs, :variable_keys, PSI.list_variable_keys(results))
     aux_variable_keys = get(kwargs, :aux_variable_keys, PSI.list_aux_variable_keys(results))
 

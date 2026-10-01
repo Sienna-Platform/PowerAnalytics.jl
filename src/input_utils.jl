@@ -112,6 +112,72 @@ make_entry_kwargs(key_tuples::Vector{<:Tuple}) = [
     ]
 ]
 
+# TIME WINDOWS
+# Number of time steps a `horizon` spans in `res`. An integer horizon is already a step
+# count; a period is divided by the results resolution and must be a whole multiple of it.
+_horizon_len(::IS.Results, ::Nothing) = nothing
+_horizon_len(::IS.Results, horizon::Integer) = Int(horizon)
+
+function _horizon_len(res::IS.Results, horizon::Dates.FixedPeriod)
+    resolution = PSI.get_resolution(res)
+    steps = Dates.Millisecond(horizon) / Dates.Millisecond(resolution)
+    isinteger(steps) || throw(
+        ArgumentError(
+            "horizon $horizon is not a whole multiple of the results resolution " *
+            "$(Dates.canonicalize(resolution))",
+        ),
+    )
+    return Int(steps)
+end
+
+# `Dates.Month` and `Dates.Year` have no fixed length
+_horizon_len(::IS.Results, horizon::Dates.Period) = throw(
+    ArgumentError(
+        "horizon $horizon has no fixed duration; use a fixed period such as " *
+        "`Dates.Hour` or `Dates.Day`, or an integer number of time steps",
+    ),
+)
+
+_first_given(::Symbol, ::Nothing, ::Symbol, ::Nothing) = nothing
+_first_given(::Symbol, value, ::Symbol, ::Nothing) = value
+_first_given(::Symbol, ::Nothing, ::Symbol, value) = value
+_first_given(name::Symbol, ::Any, other_name::Symbol, ::Any) = throw(
+    ArgumentError("pass only one of `$name` and `$other_name`"),
+)
+
+"""
+Resolve the time window key words of [`compute`](@ref) into the `start_time` (a
+`DateTime`) and `len` (a number of time steps) that `Metric` evaluation functions receive.
+`initial_time` and `horizon` are the documented spellings; `start_time` and `len` are the
+already-resolved form, accepted so that nested `compute` calls inside evaluation functions
+can forward their key words unchanged.
+"""
+function resolve_time_window(
+    res::IS.Results;
+    initial_time::Union{Nothing, DateTime} = nothing,
+    horizon::Union{Nothing, Integer, Dates.Period} = nothing,
+    start_time::Union{Nothing, DateTime} = nothing,
+    len::Union{Nothing, Integer} = nothing,
+)
+    start_time = _first_given(:initial_time, initial_time, :start_time, start_time)
+    len = _first_given(:horizon, _horizon_len(res, horizon), :len, len)
+    return (start_time = start_time, len = len)
+end
+
+# Resolve the time window key words within `kwargs`, passing any other key words through.
+# No window key words are added when none were given, so evaluation functions that take
+# none keep working.
+function _resolve_window_kwargs(res::IS.Results, kwargs)
+    window_keys = (:initial_time, :horizon, :start_time, :len)
+    other = Base.structdiff(values(kwargs), NamedTuple{window_keys})
+    any(k -> haskey(kwargs, k), window_keys) || return other
+    window = resolve_time_window(
+        res;
+        (k => kwargs[k] for k in window_keys if haskey(kwargs, k))...,
+    )
+    return merge(other, window)
+end
+
 # SimulationProblemResults has some extra features: the ability to `load_results!` and to specify which columns we want
 function _read_results_with_keys_wrapper(
     res::PSI.SimulationProblemResults{PSI.DecisionModelSimulationResults},
@@ -120,11 +186,12 @@ function _read_results_with_keys_wrapper(
     len::Union{Int, Nothing} = nothing,
     cols::Union{Colon, Vector{String}},
 )
-    cache_len = isnothing(len) ? length(PSI.get_timestamps(res)) : len
+    # Cache every stored window of the key. `load_results!` counts in windows starting
+    # from a window-initial time while `start_time`/`len` are in time steps, so the
+    # requested time window is applied by `read_results_with_keys` instead.
     PSI.load_results!(
         res,
-        cache_len;
-        initial_time = start_time,
+        length(PSI.get_timestamps(res));
         make_entry_kwargs([key_pair])...,
     )
     return PSI.read_results_with_keys(
@@ -153,12 +220,29 @@ _read_results_with_keys_wrapper(
         table_format = IS.TableFormat.WIDE,
     )
 
+# The keys of the same kind as `key` that are stored in `res`, or `nothing` when that kind
+# of key cannot be listed
+_stored_keys(res::IS.Results, ::PSI.VariableKey) = PSI.list_variable_keys(res)
+_stored_keys(res::IS.Results, ::PSI.ExpressionKey) = PSI.list_expression_keys(res)
+_stored_keys(res::IS.Results, ::PSI.ParameterKey) = PSI.list_parameter_keys(res)
+_stored_keys(res::IS.Results, ::PSI.AuxVarKey) = PSI.list_aux_variable_keys(res)
+_stored_keys(::IS.Results, ::PSI.OptimizationContainerKey) = nothing
+
+# Throw a `NoResultError` if `key` was never stored in `res`, so that a missing key and a
+# missing component surface as the same error
+function _check_key_stored(res::IS.Results, key::PSI.OptimizationContainerKey)
+    stored = _stored_keys(res, key)
+    (isnothing(stored) || key in stored) && return
+    throw(NoResultError("$(PSI.encode_key_as_string(key)) is not in the results"))
+end
+
 "Given an EntryType and a Component, fetch a single column of results"
 function read_component_result(res::IS.Results, entry::Type{<:EntryType}, comp::Component;
     start_time::Union{Nothing, DateTime} = nothing,
     len::Union{Int, Nothing} = nothing,
 )
     key_pair = (entry, typeof(comp))
+    _check_key_stored(res, make_key(key_pair...))
     res = try
         only(
             values(
@@ -190,6 +274,7 @@ end
 function read_system_result(res::IS.Results, entry::Type{<:SystemEntryType};
     start_time::Union{Nothing, DateTime} = nothing, len::Union{Int, Nothing} = nothing)
     key = make_key(entry, PSY.System)
+    _check_key_stored(res, key)
     res = only(
         values(
             PSI.read_results_with_keys(

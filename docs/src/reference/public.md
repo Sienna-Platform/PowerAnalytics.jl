@@ -105,6 +105,8 @@ Filter = t -> !(t in [Metric, TimedMetric, TimelessMetric, ComponentSelectorTime
 ```@docs
 rebuild_metric
 compose_metrics
+make_component_metric_from_entry
+make_system_metric_from_entry
 ```
 
 ```@autodocs

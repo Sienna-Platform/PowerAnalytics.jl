@@ -3,6 +3,7 @@
 # would be great if we did.
 
 (results_uc, results_ed) = run_test_sim(TEST_RESULT_DIR, TEST_SIM_NAME)
+results_compact = run_test_prob_compact()
 const ResultType = AbstractDataFrame
 
 @testset "Test make_component_metric_from_entry" begin
@@ -133,6 +134,44 @@ end
 
 function test_metric(::Val{:calc_system_slack_up})
     @test calc_system_slack_up(results_ed) isa ResultType
+end
+
+function test_metric(::Val{:calc_system_slack_down})
+    computed = calc_system_slack_down(results_ed)
+    @test computed isa ResultType
+    # Same entry as reading the stored system variable directly
+    @test get_data_vec(computed) ==
+          get_data_vec(PA.read_system_result(results_ed, PSI.SystemBalanceSlackDown))
+end
+
+# The test simulation has no `Source` components with input/output time series, so these
+# check that the metrics read their own entry, which the thermal units do not have
+function test_metric(::Val{:calc_active_power_in_forecast})
+    thermal = first(get_components(ThermalStandard, get_system(results_uc)))
+    @test_throws "ActivePowerInTimeSeriesParameter__ThermalStandard" calc_active_power_in_forecast(
+        make_selector(thermal),
+        results_uc,
+    )
+end
+
+function test_metric(::Val{:calc_active_power_out_forecast})
+    thermal = first(get_components(ThermalStandard, get_system(results_uc)))
+    @test_throws "ActivePowerOutTimeSeriesParameter__ThermalStandard" calc_active_power_out_forecast(
+        make_selector(thermal),
+        results_uc,
+    )
+end
+
+function test_metric(::Val{:calc_power_output})
+    selector = make_selector(ThermalStandard; groupby = :all)
+    computed = calc_power_output(selector, results_compact)
+    @test computed isa ResultType
+    # `PowerOutput` is the total output, so it is never below the output above minimum
+    # that a compact formulation optimizes over, and above it whenever a unit is on
+    above_min = make_component_metric_from_entry("AboveMin", PSI.PowerAboveMinimumVariable)
+    above_min_vals = get_data_vec(above_min(selector, results_compact))
+    @test all(get_data_vec(computed) .>= above_min_vals .- 1e-6)
+    @test sum(get_data_vec(computed)) > sum(above_min_vals)
 end
 
 function test_metric(::Val{:calc_total_cost})

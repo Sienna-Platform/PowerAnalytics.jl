@@ -1,4 +1,20 @@
-"Convenience function to convert an `EntryType` to a function and make a `ComponentTimedMetric` from it"
+"""
+    make_component_metric_from_entry(name::String, key::Type)
+
+Make a [`ComponentTimedMetric`](@ref) named `name` that reads the PowerSimulations result
+entry `key` (a variable, expression, parameter or auxiliary variable type, e.g.
+`PowerSimulations.ActivePowerVariable`) for each component.
+
+# Examples
+
+```julia
+calc_reactive_power = make_component_metric_from_entry(
+    "ReactivePower", PowerSimulations.ReactivePowerVariable)
+calc_reactive_power(make_selector(ThermalStandard), results)
+```
+
+See also: [`make_system_metric_from_entry`](@ref)
+"""
 make_component_metric_from_entry(
     name::String,
     key::Type{<:EntryType},
@@ -7,7 +23,15 @@ make_component_metric_from_entry(
         eval_fn = (res::IS.Results, comp::Component; kwargs...) ->
             read_component_result(res, key, comp; kwargs...))
 
-"Convenience function to convert a `SystemEntryType` to a function and make a `SystemTimedMetric` from it"
+"""
+    make_system_metric_from_entry(name::String, key::Type)
+
+Make a [`SystemTimedMetric`](@ref) named `name` that reads the system-wide PowerSimulations
+result entry `key` (a variable or expression type, e.g.
+`PowerSimulations.SystemBalanceSlackUp`).
+
+See also: [`make_component_metric_from_entry`](@ref)
+"""
 make_system_metric_from_entry(
     name::String,
     key::Type{<:SystemEntryType},
@@ -107,7 +131,11 @@ export calc_active_power,
     calc_total_cost,
     calc_discharge_cycles,
     calc_system_slack_up,
+    calc_system_slack_down,
     calc_is_slack_up,
+    calc_active_power_in_forecast,
+    calc_active_power_out_forecast,
+    calc_power_output,
     calc_sum_objective_value,
     calc_sum_solve_time,
     calc_sum_bytes_alloc
@@ -175,13 +203,43 @@ const calc_active_power_forecast = make_component_metric_from_entry(
     PSI.ActivePowerTimeSeriesParameter,
 )
 
+"""
+Forecast active power input of the specified `ComponentSelector` from
+`PowerSimulations.ActivePowerInTimeSeriesParameter`, e.g. a `Source` whose input is fixed
+by a time series. Follows the sign of the stored parameter.
+"""
+const calc_active_power_in_forecast = make_component_metric_from_entry(
+    "ActivePowerInForecast",
+    PSI.ActivePowerInTimeSeriesParameter,
+)
+
+"""
+Forecast active power output of the specified `ComponentSelector` from
+`PowerSimulations.ActivePowerOutTimeSeriesParameter`, e.g. a `Source` whose output is fixed
+by a time series.
+"""
+const calc_active_power_out_forecast = make_component_metric_from_entry(
+    "ActivePowerOutForecast",
+    PSI.ActivePowerOutTimeSeriesParameter,
+)
+
+"""
+Active power output of the specified `ComponentSelector` from the
+`PowerSimulations.PowerOutput` auxiliary variable, which PowerSimulations computes for
+formulations that have no `ActivePowerVariable` of their own.
+"""
+const calc_power_output = make_component_metric_from_entry(
+    "PowerOutput",
+    PSI.PowerOutput,
+)
+
 "Fetch the forecast active load of the specified `ComponentSelector`"
 const calc_load_forecast = ComponentTimedMetric(;
     name = "LoadForecast",
     # Load is negative power
     # NOTE if we had our own time-indexed dataframe type we could overload multiplication with a scalar and simplify this
-    eval_fn = (args...) -> let
-        val = compute(calc_active_power_forecast, args...)
+    eval_fn = (args...; kwargs...) -> let
+        val = compute(calc_active_power_forecast, args...; kwargs...)
         get_data_vec(val) .*= -1
         return val
     end,
@@ -421,14 +479,20 @@ const calc_system_slack_up = make_system_metric_from_entry(
     PSI.SystemBalanceSlackUp,
 )
 
+"Calculate the system balance slack down"
+const calc_system_slack_down = make_system_metric_from_entry(
+    "SystemSlackDown",
+    PSI.SystemBalanceSlackDown,
+)
+
 """
 Create a boolean `Metric` for whether the given time period has system balance slack up of
 magnitude greater than the `threshold` argument
 """
 make_calc_is_slack_up(threshold::Real) = SystemTimedMetric(;
     name = "IsSlackUp($threshold)",
-    eval_fn = (args...) -> let
-        val = compute(calc_system_slack_up, args...)
+    eval_fn = (args...; kwargs...) -> let
+        val = compute(calc_system_slack_up, args...; kwargs...)
         val[!, first(get_data_cols(val))] =
             abs.(val[!, first(get_data_cols(val))]) .> threshold
         return val
