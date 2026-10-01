@@ -21,6 +21,8 @@ export is_col_meta, set_col_meta, set_col_meta!, get_time_df, get_time_vec, get_
     get_time_agg_fn, with_component_agg_fn, with_time_agg_fn, metric_selector_to_string,
     get_agg_meta, set_agg_meta!, rebuild_metric
 export compute, compute_all, hcat_timed_dfs, aggregate_time, compose_metrics
+export make_component_metric_from_entry, make_system_metric_from_entry
+export NoResultError
 export create_problem_results_dict
 export parse_generator_mapping_file, parse_injector_categories, parse_generator_categories
 export mean, weighted_mean, unweighted_sum
