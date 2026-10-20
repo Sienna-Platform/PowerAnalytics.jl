@@ -146,7 +146,10 @@ function _execute_simulation(base_path, sim_name)
     set_device_model!(template_hydro_st_ed, RenewableNonDispatch, FixedOutput)
     set_device_model!(template_hydro_st_ed, RenewableDispatch, RenewableFullDispatch)
     set_device_model!(template_hydro_st_ed, HydroDispatch, FixedOutput)
-    set_device_model!(template_hydro_st_ed, Line, StaticBranch)
+    set_device_model!(
+        template_hydro_st_ed,
+        DeviceModel(Line, StaticBranch; duals = [FlowRateConstraint]),
+    )
     set_device_model!(
         template_hydro_st_ed,
         EnergyReservoirStorage,

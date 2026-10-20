@@ -44,9 +44,23 @@ For a classical realized capacity factor, compose or define a metric that divide
 Sum production, startup, and shutdown yourself when you need a full commitment cost. Not
 every component cost type defines start/stop coefficients.
 
+## Branch utilization versus congestion duals
+
+| Metric                                                                           | Meaning                                                         | Typical question                            |
+|:-------------------------------------------------------------------------------- |:--------------------------------------------------------------- |:------------------------------------------- |
+| [`calc_branch_utilization`](@ref PowerAnalytics.Metrics.calc_branch_utilization) | ``|\mathrm{flow}| / \mathrm{rating}``                           | How hard is this corridor loaded?           |
+| [`calc_flow_rate_dual`](@ref PowerAnalytics.Metrics.calc_flow_rate_dual)         | Signed ``\mu_\ell = \mathrm{dual\_ub} + \mathrm{dual\_lb}``     | What is the shadow price of the flow limit? |
+| [`calc_is_congested`](@ref PowerAnalytics.Metrics.calc_is_congested)             | Binding flow dual above a small threshold (default ``10^{-6}``) | Was the line congested in this hour?        |
+
+Utilization is a physical loading ratio (use [`aggregate_time`](@ref) with `agg_fn = maximum` for peak utilization). Congestion duals require
+`DeviceModel(Line, StaticBranch; duals = [FlowRateConstraint])` (or equivalent) when
+building the problem. For `calc_is_congested`, summing in time counts congested hours;
+the default mean via [`aggregate_time`](@ref) is the fraction of hours congested.
+
 ## Weighted aggregation
 
-Curtailment fraction, integration (in time), and capacity factor attach `agg_meta` weights so
+Curtailment fraction, integration (in time), capacity factor, and branch utilization attach
+`agg_meta` weights so
 [`aggregate_time`](@ref) and multi-component reductions are not simple unweighted means.
 If a summary looks “too small” or “too large” relative to a hand-built mean, check the
 metric docstring for `weighted_mean` / `unweighted_sum` behavior.

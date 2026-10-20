@@ -178,6 +178,24 @@ function test_metric(::Val{:calc_total_cost})
     @test calc_total_cost(make_selector(ThermalStandard), results_uc) isa ResultType
 end
 
+function test_metric(::Val{:calc_active_power_flow})
+    @test calc_active_power_flow(make_selector(Line), results_ed) isa ResultType
+end
+
+function test_metric(::Val{:calc_branch_utilization})
+    @test calc_branch_utilization(make_selector(Line), results_ed) isa ResultType
+end
+
+function test_metric(::Val{:calc_flow_rate_dual})
+    @test calc_flow_rate_dual(make_selector(Line), results_ed) isa ResultType
+end
+
+function test_metric(::Val{:calc_is_congested})
+    computed = calc_is_congested(make_selector(Line), results_ed)
+    @test computed isa ResultType
+    @test all(x -> x isa Bool, Matrix(get_data_df(computed)))
+end
+
 all_metric_names = filter(x -> getproperty(PowerAnalytics.Metrics, x) isa Metric,
     names(PowerAnalytics.Metrics))
 

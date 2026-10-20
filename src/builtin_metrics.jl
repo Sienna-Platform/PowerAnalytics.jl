@@ -106,6 +106,7 @@ import
     ..unweighted_sum,
     ..mean,
     ..read_component_result,
+    ..NoResultError,
     ..rebuild_selector,
     ..DataFrame,
     ..DATETIME_COL,
@@ -136,6 +137,11 @@ export calc_active_power,
     calc_active_power_in_forecast,
     calc_active_power_out_forecast,
     calc_power_output,
+    calc_active_power_flow,
+    calc_branch_utilization,
+    calc_flow_rate_dual,
+    make_calc_is_congested,
+    calc_is_congested,
     calc_sum_objective_value,
     calc_sum_solve_time,
     calc_sum_bytes_alloc
@@ -503,6 +509,103 @@ make_calc_is_slack_up(threshold::Real) = SystemTimedMetric(;
 const DEFAULT_SLACK_UP_THRESHOLD = 1e-4
 "Calculate whether the given time period has system balance slack up of magnitude greater than $DEFAULT_SLACK_UP_THRESHOLD"
 const calc_is_slack_up = make_calc_is_slack_up(DEFAULT_SLACK_UP_THRESHOLD)
+
+"""
+Active power flow on the specified branch `ComponentSelector`.
+
+Prefers [`PowerSimulations.FlowActivePowerVariable`](@extref); if that key is missing for
+the component type, falls back to the [`PowerSimulations.PTDFBranchFlow`](@extref)
+expression (typical for PTDF network models).
+
+Component- and time-aggregation both default to [`sum`](@extref Base.sum).
+"""
+const calc_active_power_flow = ComponentTimedMetric(;
+    name = "ActivePowerFlow",
+    eval_fn = (
+        (res::IS.Results, comp::Component; kwargs...) -> try
+            read_component_result(res, PSI.FlowActivePowerVariable, comp; kwargs...)
+        catch e
+            e isa NoResultError || rethrow()
+            read_component_result(res, PSI.PTDFBranchFlow, comp; kwargs...)
+        end
+    ),
+)
+
+"""
+Branch utilization of the specified `ComponentSelector`:
+``|\\mathrm{ActivePowerFlow}| / \\mathrm{rating}``.
+
+Uses [`calc_active_power_flow`](@ref) and `PowerSystems.get_rating`. Peak or mean
+utilization are obtained with [`aggregate_time`](@ref) (`agg_fn = maximum` or default
+mean), not separate metrics.
+
+`agg_meta` repeats each component's rating; component- and time-aggregation use
+[`weighted_mean`](@ref) with those ratings as weights.
+"""
+const calc_branch_utilization = ComponentTimedMetric(;
+    name = "BranchUtilization",
+    eval_fn = (
+        (res::IS.Results, comp::Component; kwargs...) -> let
+            result = compute(calc_active_power_flow, res, comp; kwargs...)
+            rating = PSY.get_rating(comp)
+            get_data_vec(result) .= abs.(get_data_vec(result)) ./ rating
+            set_agg_meta!(result, repeat([rating], length(get_data_vec(result))))
+            return result
+        end
+    ), component_agg_fn = weighted_mean, time_agg_fn = weighted_mean,
+)
+
+"""
+Signed `FlowRateConstraint` dual (``\\mu_\\ell = \\mathrm{dual\\_ub} + \\mathrm{dual\\_lb}``)
+for the specified branch `ComponentSelector`.
+
+Requires a device model that stores flow duals, for example
+`DeviceModel(Line, StaticBranch; duals = [FlowRateConstraint])`.
+"""
+const calc_flow_rate_dual = ComponentTimedMetric(;
+    name = "FlowRateDual",
+    eval_fn = (
+        (res::IS.Results, comp::Component; kwargs...) -> let
+            ub = read_component_result(
+                res, PSI.FlowRateConstraint, comp; kwargs..., meta = "ub")
+            lb = read_component_result(
+                res, PSI.FlowRateConstraint, comp; kwargs..., meta = "lb")
+            get_data_vec(ub) .+= get_data_vec(lb)
+            return ub
+        end
+    ),
+)
+
+"""
+Create a boolean `Metric` for whether the branch is congested: the larger absolute
+`FlowRateConstraint` dual (`ub` or `lb`) exceeds `threshold`.
+
+Requires a device model that stores flow duals, for example
+`DeviceModel(Line, StaticBranch; duals = [FlowRateConstraint])`.
+
+Summing in time counts congested hours; [`aggregate_time`](@ref) with the default mean
+gives the fraction of hours congested.
+"""
+make_calc_is_congested(threshold::Real) = ComponentTimedMetric(;
+    name = "IsCongested($threshold)",
+    eval_fn = (args...; kwargs...) -> let
+        res, comp = args
+        ub = read_component_result(
+            res, PSI.FlowRateConstraint, comp; kwargs..., meta = "ub")
+        lb = read_component_result(
+            res, PSI.FlowRateConstraint, comp; kwargs..., meta = "lb")
+        ub[!, first(get_data_cols(ub))] =
+            max.(abs.(get_data_vec(ub)), abs.(get_data_vec(lb))) .> threshold
+        return ub
+    end,
+)
+
+const DEFAULT_CONGESTION_DUAL_THRESHOLD = 1e-6
+"""
+Calculate whether the branch is congested using threshold
+`$DEFAULT_CONGESTION_DUAL_THRESHOLD`. See [`make_calc_is_congested`](@ref).
+"""
+const calc_is_congested = make_calc_is_congested(DEFAULT_CONGESTION_DUAL_THRESHOLD)
 
 # TODO caching here too
 make_results_metric_from_sum_optimizer_stat(

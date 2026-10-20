@@ -78,6 +78,7 @@ const EntryType = Union{
     PSI.ParameterType,
     PSI.AuxVariableType,
     PSI.InitialConditionType,
+    PSI.ConstraintType,
 }
 
 # TODO: put make_key in PowerSimulations and refactor existing code to use it
@@ -87,6 +88,7 @@ const EntryType = Union{
  - `entry::Type{<:EntryType}`: the key entry
  - `component` (`::Type{<:Union{Component, PSY.System}}` or `::Type{<:Component}` depending
    on the key type): the component type
+ - `meta::String`: optional key metadata (required for duals such as `\"ub\"` / `\"lb\"`)
 "
 function make_key end
 make_key(entry::Type{<:PSI.VariableType}, component::Type{<:Union{Component, PSY.System}}) =
@@ -99,10 +101,16 @@ make_key(entry::Type{<:PSI.AuxVariableType}, component::Type{<:Component}) =
     PSI.AuxVarKey(entry, component)
 make_key(entry::Type{<:PSI.InitialConditionType}, component::Type{<:Component}) =
     PSI.ICKey(entry, component)
+make_key(
+    entry::Type{<:PSI.ConstraintType},
+    component::Type{<:Component},
+    meta::String = "",
+) =
+    PSI.ConstraintKey(entry, component, meta)
 
 "Sort a vector of key tuples into variables, parameters, etc. like PSI.load_results! wants"
 make_entry_kwargs(key_tuples::Vector{<:Tuple}) = [
-    (key_name => filter(((this_key, _),) -> this_key <: key_type, key_tuples))
+    (key_name => filter(t -> first(t) <: key_type, key_tuples))
     for (key_name, key_type) in [
         (:variables, PSI.VariableType),
         (:duals, PSI.ConstraintType),
@@ -226,6 +234,7 @@ _stored_keys(res::IS.Results, ::PSI.VariableKey) = PSI.list_variable_keys(res)
 _stored_keys(res::IS.Results, ::PSI.ExpressionKey) = PSI.list_expression_keys(res)
 _stored_keys(res::IS.Results, ::PSI.ParameterKey) = PSI.list_parameter_keys(res)
 _stored_keys(res::IS.Results, ::PSI.AuxVarKey) = PSI.list_aux_variable_keys(res)
+_stored_keys(res::IS.Results, ::PSI.ConstraintKey) = PSI.list_dual_keys(res)
 _stored_keys(::IS.Results, ::PSI.OptimizationContainerKey) = nothing
 
 # Throw a `NoResultError` if `key` was never stored in `res`, so that a missing key and a
@@ -236,12 +245,22 @@ function _check_key_stored(res::IS.Results, key::PSI.OptimizationContainerKey)
     throw(NoResultError("$(PSI.encode_key_as_string(key)) is not in the results"))
 end
 
+_component_key_pair(entry::Type{<:EntryType}, comp::Component) = (entry, typeof(comp))
+_component_key_pair(entry::Type{<:PSI.ConstraintType}, comp::Component, meta::String) =
+    (entry, typeof(comp), meta)
+
 "Given an EntryType and a Component, fetch a single column of results"
 function read_component_result(res::IS.Results, entry::Type{<:EntryType}, comp::Component;
     start_time::Union{Nothing, DateTime} = nothing,
     len::Union{Int, Nothing} = nothing,
+    meta::String = "",
 )
-    key_pair = (entry, typeof(comp))
+    key_pair =
+        if entry <: PSI.ConstraintType
+            _component_key_pair(entry, comp, meta)
+        else
+            _component_key_pair(entry, comp)
+        end
     _check_key_stored(res, make_key(key_pair...))
     res = try
         only(

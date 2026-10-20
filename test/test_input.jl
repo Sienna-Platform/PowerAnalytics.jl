@@ -80,6 +80,28 @@ end
     end
 end
 
+@testset "Test read_component_result FlowRateConstraint duals" begin
+    line = first(get_components(Line, get_system(results_ed)))
+    for meta in ("ub", "lb")
+        my_result = PA.read_component_result(
+            results_ed, FlowRateConstraint, line; meta = meta)
+        key = PSI.ConstraintKey(FlowRateConstraint, Line, meta)
+        existing_result = only(
+            values(
+                PSI.read_results_with_keys(
+                    results_ed, [key]; table_format = IS.TableFormat.WIDE),
+            ),
+        )[
+            !,
+            ["DateTime", get_name(line)],
+        ]
+        @test my_result == existing_result
+    end
+    # UC has no FlowRateConstraint duals stored
+    @test_throws NoResultError PA.read_component_result(
+        results_uc, FlowRateConstraint, line; meta = "ub")
+end
+
 @testset "Test read_system_result" begin
     entry = SystemBalanceSlackUp
     my_result = PA.read_system_result(results_ed, entry)
