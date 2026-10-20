@@ -54,6 +54,17 @@ end
 
 function test_metric(::Val{:calc_capacity_factor})
     @test calc_capacity_factor(make_selector(RenewableDispatch), results_uc) isa ResultType
+    sys = PSI.get_system(results_uc)
+    PSY.set_units_base_system!(sys, IS.UnitSystem.SYSTEM_BASE)
+    try
+        computed = calc_capacity_factor(make_selector(RenewableDispatch), results_uc)
+        @test computed isa ResultType
+        vals = Matrix(get_data_df(computed))
+        @test all(isfinite, vals)
+        @test all(x -> 0 <= x <= 2, vals)
+    finally
+        PSY.set_units_base_system!(sys, IS.UnitSystem.NATURAL_UNITS)
+    end
 end
 
 function test_metric(::Val{:calc_curtailment})
@@ -184,6 +195,17 @@ end
 
 function test_metric(::Val{:calc_branch_utilization})
     @test calc_branch_utilization(make_selector(Line), results_ed) isa ResultType
+    sys = PSI.get_system(results_ed)
+    PSY.set_units_base_system!(sys, IS.UnitSystem.SYSTEM_BASE)
+    try
+        computed = calc_branch_utilization(make_selector(Line), results_ed)
+        @test computed isa ResultType
+        vals = Matrix(get_data_df(computed))
+        @test all(isfinite, vals)
+        @test all(x -> 0 <= x <= 2, vals)
+    finally
+        PSY.set_units_base_system!(sys, IS.UnitSystem.NATURAL_UNITS)
+    end
 end
 
 function test_metric(::Val{:calc_flow_rate_dual})

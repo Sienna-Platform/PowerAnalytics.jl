@@ -252,7 +252,17 @@ function get_branch_aux_variable_keys(
             push!(filter_keys, k)
         end
     end
-    return filter_keys
+    # Prefer FromTo when both directions exist for the same component type so
+    # `add_aux_variables!` (one key per type) is deterministic.
+    preferred = Dict{DataType, PSI.OptimizationContainerKey}()
+    for k in filter_keys
+        ct = PSI.get_component_type(k)
+        et = PSI.get_entry_type(k)
+        if !haskey(preferred, ct) || et === PSI.PowerFlowBranchActivePowerFromTo
+            preferred[ct] = k
+        end
+    end
+    return collect(values(preferred))
 end
 
 no_datetime(df::DataFrames.DataFrame) = df[:, propertynames(df) .!== :DateTime]

@@ -146,6 +146,16 @@ export calc_active_power,
     calc_sum_solve_time,
     calc_sum_bytes_alloc
 
+_natural_rating(comp::Component) =
+    PSY.with_units_base(comp, IS.UnitSystem.NATURAL_UNITS) do
+        PSY.get_rating(comp)
+    end
+
+_natural_storage_capacity(comp::Component) =
+    PSY.with_units_base(comp, IS.UnitSystem.NATURAL_UNITS) do
+        PSY.get_storage_capacity(comp)
+    end
+
 # NOTE ActivePowerVariable is in units of megawatts per simulation time period, so it's
 # actually energy and it makes sense to sum it up.
 """
@@ -386,7 +396,7 @@ const calc_capacity_factor = ComponentTimedMetric(;
     eval_fn = (
         (res::IS.Results, comp::Component; kwargs...) -> let
             result = compute(calc_active_power_forecast, res, comp; kwargs...)
-            rating = PSY.get_rating(comp)
+            rating = _natural_rating(comp)
             get_data_vec(result) ./= rating
             set_agg_meta!(result, repeat([rating], length(get_data_vec(result))))
             return result
@@ -472,7 +482,7 @@ const calc_discharge_cycles = ComponentTimedMetric(;
             val = read_component_result(res, PSI.ActivePowerOutVariable, comp; kwargs...)
             soc_limits = PSY.get_storage_level_limits(comp)
             soc_range =
-                PSY.get_storage_capacity(comp) * (soc_limits.max - soc_limits.min)
+                _natural_storage_capacity(comp) * (soc_limits.max - soc_limits.min)
             get_data_vec(val) ./= soc_range
             return val
         end
@@ -547,7 +557,7 @@ const calc_branch_utilization = ComponentTimedMetric(;
     eval_fn = (
         (res::IS.Results, comp::Component; kwargs...) -> let
             result = compute(calc_active_power_flow, res, comp; kwargs...)
-            rating = PSY.get_rating(comp)
+            rating = _natural_rating(comp)
             get_data_vec(result) .= abs.(get_data_vec(result)) ./ rating
             set_agg_meta!(result, repeat([rating], length(get_data_vec(result))))
             return result
