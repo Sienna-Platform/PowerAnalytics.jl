@@ -3,6 +3,7 @@
 # would be great if we did.
 
 (results_uc, results_ed) = run_test_sim(TEST_RESULT_DIR, TEST_SIM_NAME)
+results_compact = run_test_prob_compact()
 const ResultType = AbstractDataFrame
 
 @testset "Test make_component_metric_from_entry" begin
@@ -135,6 +136,45 @@ function test_metric(::Val{:calc_system_slack_up})
     @test calc_system_slack_up(results_ed) isa ResultType
 end
 
+function test_metric(::Val{:calc_system_slack_down})
+    computed = calc_system_slack_down(results_ed)
+    @test computed isa ResultType
+    # Same entry as reading the stored system variable directly
+    @test get_data_vec(computed) ==
+          get_data_vec(PA.read_system_result(results_ed, PSI.SystemBalanceSlackDown))
+end
+
+# The test simulation has no `Source` components with input/output time series, so these
+# check that the metrics read their own entry, which the thermal units do not have
+function test_metric(::Val{:calc_active_power_in_forecast})
+    thermal = first(get_components(ThermalStandard, get_system(results_uc)))
+    @test_throws "ActivePowerInTimeSeriesParameter__ThermalStandard" calc_active_power_in_forecast(
+        make_selector(thermal),
+        results_uc,
+    )
+end
+
+function test_metric(::Val{:calc_active_power_out_forecast})
+    thermal = first(get_components(ThermalStandard, get_system(results_uc)))
+    @test_throws "ActivePowerOutTimeSeriesParameter__ThermalStandard" calc_active_power_out_forecast(
+        make_selector(thermal),
+        results_uc,
+    )
+end
+
+function test_metric(::Val{:calc_power_output})
+    selector = make_selector(ThermalStandard; groupby = :all)
+    computed = calc_power_output(selector, results_compact)
+    @test computed isa ResultType
+    # `PowerOutput` is the total output, so it is never below the output above minimum
+    # that a compact formulation optimizes over, and above it whenever a unit is on
+    above_min =
+        PA.make_component_metric_from_entry("AboveMin", PSI.PowerAboveMinimumVariable)
+    above_min_vals = get_data_vec(above_min(selector, results_compact))
+    @test all(get_data_vec(computed) .>= above_min_vals .- 1e-6)
+    @test sum(get_data_vec(computed)) > sum(above_min_vals)
+end
+
 function test_metric(::Val{:calc_total_cost})
     @test calc_total_cost(make_selector(ThermalStandard), results_uc) isa ResultType
 end
@@ -145,6 +185,58 @@ all_metric_names = filter(x -> getproperty(PowerAnalytics.Metrics, x) isa Metric
 @testset for metric_name in all_metric_names
     @test isconst(PowerAnalytics.Metrics, metric_name)
     test_metric(Val(metric_name))
+end
+
+@testset "Test read_component_result without the component's column" begin
+    # `OptimizationProblemResults` cannot select columns, so the missing column is caught
+    # after reading the stored key
+    comp = ThermalStandard(nothing)
+    @test PSI.VariableKey(PSI.PowerAboveMinimumVariable, ThermalStandard) in
+          PSI.list_variable_keys(results_compact)
+    @test_throws NoResultError PA.read_component_result(
+        results_compact, PSI.PowerAboveMinimumVariable, comp)
+end
+
+@testset "Test make_calc_reserve_provision" begin
+    sys = get_system(results_uc)
+    reg = get_component(VariableReserve{ReserveUp}, sys, "REG1")
+    calc_reg = make_calc_reserve_provision(reg)
+    @test get_name(calc_reg) == "ReserveProvision(VariableReserve{ReserveUp}__REG1)"
+    # Up and down products may share a name; their metrics must not
+    @test get_name(make_calc_reserve_provision(VariableReserve{ReserveUp}(nothing))) !=
+          get_name(make_calc_reserve_provision(VariableReserve{ReserveDown}(nothing)))
+
+    # Reads the per-service key, whose columns are the contributing devices
+    key =
+        PSI.VariableKey(PSI.ActivePowerReserveVariable, VariableReserve{ReserveUp}, "REG1")
+    raw = only(
+        values(
+            PSI.read_results_with_keys(results_uc, [key];
+                table_format = IS.TableFormat.WIDE),
+        ),
+    )
+    contributing = get_contributing_devices(sys, reg)
+    @test Set(get_data_cols(raw)) == Set(get_name.(contributing))
+    for comp in contributing
+        @test get_data_vec(calc_reg(make_selector(comp), results_uc)) ==
+              raw[!, get_name(comp)]
+    end
+    thermal = make_selector(in(Set(contributing)), ThermalStandard; groupby = :all)
+    thermal_names = get_name.(get_components(in(Set(contributing)), ThermalStandard, sys))
+    @test get_data_vec(calc_reg(thermal, results_uc)) ≈
+          vec(sum(Matrix(raw[!, thermal_names]); dims = 2))
+
+    # Respects the time window like the other metrics
+    t0 = raw[3, DATETIME_COL]
+    windowed = calc_reg(thermal, results_uc; initial_time = t0, horizon = 4)
+    @test get_time_vec(windowed) == raw[3:6, DATETIME_COL]
+
+    # A device that does not contribute, and results without the reserve, have no result
+    non_contributing = first(
+        c for c in get_components(ThermalStandard, sys) if !(c in Set(contributing))
+    )
+    @test_throws NoResultError calc_reg(make_selector(non_contributing), results_uc)
+    @test_throws NoResultError calc_reg(make_selector(first(contributing)), results_ed)
 end
 
 # Regression test for https://github.com/Sienna-Platform/PowerAnalytics.jl/issues/54.

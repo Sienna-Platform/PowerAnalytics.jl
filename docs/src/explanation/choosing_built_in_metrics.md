@@ -44,6 +44,13 @@ For a classical realized capacity factor, compose or define a metric that divide
 Sum production, startup, and shutdown yourself when you need a full commitment cost. Not
 every component cost type defines start/stop coefficients.
 
+## Reserve provision
+
+Reserves are stored per service, so there is no single constant metric for them.
+[`make_calc_reserve_provision`](@ref PowerAnalytics.Metrics.make_calc_reserve_provision)
+builds one for a given `Service`, evaluated on the devices that contribute to it. Build one
+metric per product: summing an up and a down product mixes opposite directions.
+
 ## Weighted aggregation
 
 Curtailment fraction, integration (in time), and capacity factor attach `agg_meta` weights so

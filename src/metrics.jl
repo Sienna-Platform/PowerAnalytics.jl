@@ -59,7 +59,8 @@ A [`ComponentSelectorTimedMetric`](@ref) implemented by evaluating a function on
   - `name::String`: the name of the `Metric`
   - `eval_fn`: a function with signature `(::IS.Results, ::Component;
     start_time::Union{Nothing, DateTime}, len::Union{Int, Nothing})` that returns a
-    `DataFrame` representing the results for that `Component`
+    `DataFrame` representing the results for that `Component`; `compute` resolves its
+    `initial_time`/`horizon` into `start_time` and `len` (time steps)
   - `component_agg_fn`: optional, a function to aggregate results between
     [`Component`](@extref PowerSystems.Component)s/`ComponentSelector`s, defaults to
     [`sum`](@extref Base.sum)
@@ -98,7 +99,8 @@ A [`ComponentSelectorTimedMetric`](@ref) implemented without drilling down to th
   - `name::String`: the name of the `Metric`
   - `eval_fn`: a function with signature `(::IS.Results, ::Union{ComponentSelector,
     Component}; start_time::Union{Nothing, DateTime}, len::Union{Int, Nothing})` that
-    returns a `DataFrame` representing the results for that `Component`
+    returns a `DataFrame` representing the results for that `Component`; `compute` resolves
+    its `initial_time`/`horizon` into `start_time` and `len` (time steps)
   - `time_agg_fn`: optional, a function to aggregate results across time, defaults to
     [`sum`](@extref Base.sum)
   - `time_meta_agg_fn`: optional, a function to aggregate metadata across time, defaults to
@@ -122,7 +124,9 @@ PowerSystems.System) embedded in a set of results.
 
  - `name::String`: the name of the `Metric`
  - `eval_fn`: a function with signature `(::IS.Results; start_time::Union{Nothing,
-   DateTime}, len::Union{Int, Nothing})` that returns a `DataFrame` representing the results
+   DateTime}, len::Union{Int, Nothing})` that returns a `DataFrame` representing the
+   results; `compute` resolves its `initial_time`/`horizon` into `start_time` and `len`
+   (time steps)
  - `time_agg_fn`: optional, a function to aggregate results across time, defaults to
    [`sum`](@extref Base.sum)
  - `time_meta_agg_fn`: optional, a function to aggregate metadata across time, defaults to
@@ -232,7 +236,7 @@ function _compute_component_timed_helper(metric::ComponentSelectorTimedMetric,
     results::IS.Results,
     comp::Union{Component, ComponentSelector};
     kwargs...)
-    val = get_eval_fn(metric)(results, comp; kwargs...)
+    val = get_eval_fn(metric)(results, comp; _resolve_window_kwargs(results, kwargs)...)
     _compute_meta_timed!(val, metric, results)
     colmetadata!(val, 2, "components", [comp]; style = :note)
     return val
@@ -271,9 +275,13 @@ component's name.
  - `metric::ComponentTimedMetric`: the metric to compute
  - `results::IS.Results`: the results from which to fetch data
  - `comp::Component`: the component on which to compute the metric
- - `start_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
-   series should begin
- - `len::Union{Int, Nothing} = nothing`: the number of steps in the resulting time series
+ - `initial_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
+   series should begin; `nothing` means the start of the results
+ - `horizon::Union{Nothing, Int, Dates.Period} = nothing`: the length of the resulting time
+   series, as a number of time steps or as a period that is a whole multiple of the results
+   resolution; `nothing` means up to the end of the results
+
+`start_time` and `len` (a number of time steps) are also accepted.
 
 See also: [`compute`](@ref) unified function documentation
 """
@@ -290,9 +298,13 @@ available.
  - `metric::CustomTimedMetric`: the metric to compute
  - `results::IS.Results`: the results from which to fetch data
  - `comp::Component`: the component on which to compute the metric
- - `start_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
-   series should begin
- - `len::Union{Int, Nothing} = nothing`: the number of steps in the resulting time series
+ - `initial_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
+   series should begin; `nothing` means the start of the results
+ - `horizon::Union{Nothing, Int, Dates.Period} = nothing`: the length of the resulting time
+   series, as a number of time steps or as a period that is a whole multiple of the results
+   resolution; `nothing` means up to the end of the results
+
+`start_time` and `len` (a number of time steps) are also accepted.
 
 See also: [`compute`](@ref) unified function documentation
 """
@@ -309,14 +321,18 @@ a `DataFrame` with a `DateTime` column and a data column.
 # Arguments
  - `metric::SystemTimedMetric`: the metric to compute
  - `results::IS.Results`: the results from which to fetch data
- - `start_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
-   series should begin
- - `len::Union{Int, Nothing} = nothing`: the number of steps in the resulting time series
+ - `initial_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
+   series should begin; `nothing` means the start of the results
+ - `horizon::Union{Nothing, Int, Dates.Period} = nothing`: the length of the resulting time
+   series, as a number of time steps or as a period that is a whole multiple of the results
+   resolution; `nothing` means up to the end of the results
+
+`start_time` and `len` (a number of time steps) are also accepted.
 
 See also: [`compute`](@ref) unified function documentation
 """
 function compute(metric::SystemTimedMetric, results::IS.Results; kwargs...)
-    val = get_eval_fn(metric)(results; kwargs...)
+    val = get_eval_fn(metric)(results; _resolve_window_kwargs(results, kwargs)...)
     _compute_meta_timed!(val, metric, results)
     return val
 end
@@ -407,16 +423,22 @@ marked as not available.
  - `results::IS.Results`: the results from which to fetch data
  - `selector::ComponentSelector`: the `ComponentSelector` on whose subselectors to compute
    the metric
- - `start_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
-   series should begin
- - `len::Union{Int, Nothing} = nothing`: the number of steps in the resulting time series
+ - `initial_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
+   series should begin; `nothing` means the start of the results
+ - `horizon::Union{Nothing, Int, Dates.Period} = nothing`: the length of the resulting time
+   series, as a number of time steps or as a period that is a whole multiple of the results
+   resolution; `nothing` means up to the end of the results
+
+`start_time` and `len` (a number of time steps) are also accepted.
 
 See also: [`compute`](@ref) unified function documentation
 """
 function compute(metric::ComponentTimedMetric, results::IS.Results,
     selector::ComponentSelector; kwargs...)
     subents = get_groups(selector, results)
-    subcomputations = [_compute_one(metric, results, sub; kwargs...) for sub in subents]
+    window_kwargs = _resolve_window_kwargs(results, kwargs)
+    subcomputations =
+        [_compute_one(metric, results, sub; window_kwargs...) for sub in subents]
     return hcat_timed_dfs(subcomputations...)
 end
 

@@ -279,13 +279,24 @@ function add_fixed_parameters!(
     end
 end
 
+# Order of precedence of aux variables: by position in `SUPPORTED_BRANCH_AUX_VARIABLES`, then
+# by encoded key
+function _aux_key_rank(key::PSI.OptimizationContainerKey)
+    rank = findfirst(==(PSI.get_entry_type(key)), SUPPORTED_BRANCH_AUX_VARIABLES)
+    return (
+        something(rank, length(SUPPORTED_BRANCH_AUX_VARIABLES) + 1),
+        PSI.encode_key_as_string(key),
+    )
+end
+
 function add_aux_variables!(
     variables::Dict{V, DataFrames.DataFrame},
     aux_variables::Dict{A, DataFrames.DataFrame},
 ) where {V <: PSI.OptimizationContainerKey, A <: PSI.OptimizationContainerKey}
-    # fixed output should be added to plots when there exists a parameter of the form
-    # :P__max_active_power__* but there is no corresponding :P__* variable
-    for (param_key, param) in aux_variables
+    # Add an aux variable only for a component type that has no entry in `variables`; per
+    # component type, the first aux variable in `_aux_key_rank` order is kept
+    for param_key in sort!(collect(keys(aux_variables)); by = _aux_key_rank)
+        param = aux_variables[param_key]
         PSI.get_component_type(param_key) ∈ PSI.get_component_type.(keys(variables)) &&
             continue
         if !haskey(variables, param_key)
@@ -415,7 +426,8 @@ optionally including storage, sources, and curtailment columns.
  - `filter_func::Union{Function, Nothing} = nothing`: component filter applied when
    selecting columns; `nothing` keeps all available components
  - `initial_time` / `start_time`: start of the realized window (default: results metadata)
- - `horizon` / `len`: number of time steps to read
+ - `horizon` / `len`: number of time steps to read, or a period that is a whole multiple
+   of the results resolution
  - `variable_keys`, `parameter_keys`, `aux_variable_keys`: override which optimization
    container keys are considered
  - `curtailment::Bool = true`: include curtailment columns when parameters allow
@@ -439,7 +451,8 @@ function get_generation_data(
     kwargs...,
 ) where {R <: IS.Results}
     initial_time = get(kwargs, :initial_time, get(kwargs, :start_time, nothing))
-    len = get(kwargs, :horizon, get(kwargs, :len, nothing))
+    len = _horizon_len(results, get(kwargs, :horizon, get(kwargs, :len, nothing)))
+    _check_given_time_window(results, initial_time, len; kwargs...)
     variable_keys = get(kwargs, :variable_keys, PSI.list_variable_keys(results))
     parameter_keys = get(kwargs, :parameter_keys, PSI.list_parameter_keys(results))
     aux_variable_keys = get(kwargs, :aux_variable_keys, PSI.list_aux_variable_keys(results))
@@ -531,7 +544,8 @@ Extract load time series from simulation `results` into a [`PowerData`](@ref).
 # Keyword Arguments
  - `filter_func::Union{Function, Nothing} = nothing`: component filter for columns
  - `initial_time` / `start_time`: start of the realized window
- - `horizon` / `len`: number of time steps to read
+ - `horizon` / `len`: number of time steps to read, or a period that is a whole multiple
+   of the results resolution
  - `variable_keys`, `parameter_keys`, `aux_variable_keys`: override optimization
    container keys considered for load
 
@@ -547,7 +561,8 @@ function get_load_data(
     kwargs...,
 ) where {R <: IS.Results}
     initial_time = get(kwargs, :initial_time, get(kwargs, :start_time, nothing))
-    len = get(kwargs, :horizon, get(kwargs, :len, nothing))
+    len = _horizon_len(results, get(kwargs, :horizon, get(kwargs, :len, nothing)))
+    _check_given_time_window(results, initial_time, len; kwargs...)
     variable_keys = get(kwargs, :variable_keys, PSI.list_variable_keys(results))
     parameter_keys = get(kwargs, :parameter_keys, PSI.list_parameter_keys(results))
     aux_variable_keys = get(kwargs, :aux_variable_keys, PSI.list_aux_variable_keys(results))
@@ -706,7 +721,8 @@ Extract ancillary-service variable time series from `results` into a [`PowerData
 # Keyword Arguments
  - `filter_func::Union{Function, Nothing} = nothing`: component filter for columns
  - `initial_time` / `start_time`: start of the realized window
- - `horizon` / `len`: number of time steps to read
+ - `horizon` / `len`: number of time steps to read, or a period that is a whole multiple
+   of the results resolution
  - `variable_keys`: override which service variable keys are read
 
 # Returns
@@ -720,7 +736,8 @@ function get_service_data(
     kwargs...,
 ) where {R <: IS.Results}
     initial_time = get(kwargs, :initial_time, get(kwargs, :start_time, nothing))
-    len = get(kwargs, :horizon, get(kwargs, :len, nothing))
+    len = _horizon_len(results, get(kwargs, :horizon, get(kwargs, :len, nothing)))
+    _check_given_time_window(results, initial_time, len; kwargs...)
     variable_keys = get(kwargs, :variable_keys, PSI.list_variable_keys(results))
     #parameter_keys = get(kwargs, :parameter_keys, PSI.list_parameter_keys(results))
 
@@ -760,7 +777,8 @@ function get_branch_data(
     kwargs...,
 ) where {R <: IS.Results}
     initial_time = get(kwargs, :initial_time, get(kwargs, :start_time, nothing))
-    len = get(kwargs, :horizon, get(kwargs, :len, nothing))
+    len = _horizon_len(results, get(kwargs, :horizon, get(kwargs, :len, nothing)))
+    _check_given_time_window(results, initial_time, len; kwargs...)
     variable_keys = get(kwargs, :variable_keys, PSI.list_variable_keys(results))
     aux_variable_keys = get(kwargs, :aux_variable_keys, PSI.list_aux_variable_keys(results))
 
