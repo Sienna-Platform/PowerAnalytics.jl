@@ -86,7 +86,7 @@ other_weights = [2, 1, 1]
 "Return some simple numbers with some simple metadata"
 test_calc_dummy_meta = ComponentTimedMetric(;
     name = "DummyMeta",
-    eval_fn = (res::IS.Results, comp::Component;
+    eval_fn = (res::IS.Results, comp::IS.InfrastructureSystemsComponent;
         start_time::Union{Nothing, Dates.DateTime} = nothing,
         len::Union{Int, Nothing} = nothing) -> let
         (start_time !== nothing && len !== nothing) &&
@@ -356,6 +356,15 @@ end
     end
 end
 
+@testset "Test ComponentTimedMetric on InfrastructureSystemsComponents" begin
+    comp = IS.TestComponent("TestComponent", 1)
+    computed = compute(test_calc_dummy_meta, results_uc, comp)
+    test_timed_metric_helper(computed, test_calc_dummy_meta, get_name(comp))
+    @test get_data_vec(computed) == other_vals
+    @test get_agg_meta(computed) == other_weights
+    @test colmetadata(computed, get_name(comp), "components") == [comp]
+end
+
 @testset "Test ComponentTimedMetric on SingularComponentSelectors" begin
     for (label, res) in pairs(resultses)
         for sel in test_selectors
@@ -463,6 +472,11 @@ end
 end
 
 @testset "Test compute_all" begin
+    generic_component = IS.TestComponent("TestComponent", 1)
+    computed = compute_all(results_uc, [test_calc_dummy_meta], generic_component)
+    @test names(computed) == [DATETIME_COL, "DummyMeta__TestComponent"]
+    @test get_data_vec(computed) == other_vals
+
     my_metrics = [test_calc_active_power, test_calc_active_power,
         test_calc_production_cost, test_calc_production_cost]
     my_component = first(get_components(RenewableDispatch, get_system(results_uc)))
@@ -552,6 +566,16 @@ end
 end
 
 @testset "Test compose_metrics" begin
+    generic_component = IS.TestComponent("TestComponent", 1)
+    dummy_system = SystemTimedMetric(;
+        name = "DummySystem",
+        eval_fn = (res::IS.Results; kwargs...) ->
+            compute(test_calc_dummy_meta, res, generic_component; kwargs...),
+    )
+    mixed_dummy = compose_metrics("MixedDummy", (+), test_calc_dummy_meta, dummy_system)
+    @test get_data_vec(compute(mixed_dummy, results_uc, generic_component)) ==
+          2 * other_vals
+
     # TODO broken for groupby = :each?
     mysel = make_selector(ThermalStandard; groupby = :all)
     "Computes ActivePower*3"

@@ -1,10 +1,13 @@
-"Convenience function to convert an `EntryType` to a function and make a `ComponentTimedMetric` from it"
+"""
+Create a `ComponentTimedMetric` that reads an `EntryType` through `read_component_result`.
+The reader must support the supplied results, entry and component types.
+"""
 make_component_metric_from_entry(
     name::String,
     key::Type{<:EntryType},
 ) =
     ComponentTimedMetric(; name = name,
-        eval_fn = (res::IS.Results, comp::Component; kwargs...) ->
+        eval_fn = (res::IS.Results, comp::IS.InfrastructureSystemsComponent; kwargs...) ->
             read_component_result(res, key, comp; kwargs...))
 
 "Convenience function to convert a `SystemEntryType` to a function and make a `SystemTimedMetric` from it"
