@@ -185,6 +185,177 @@ function read_component_result(res::IS.Results, entry::Type{<:EntryType}, comp::
     return res[!, [DATETIME_COL, get_name(comp)]]
 end
 
+struct InvestmentOperationalResults <: IS.Results
+    results::ISOPT.OptimizationProblemResults
+    portfolio::PSIP.Portfolio
+end
+
+"""
+    operational_results(results::InfrastructureSystems.Results)
+
+Create a PowerAnalytics view of time-step operational variables from investment results.
+The native results must have their original portfolio attached with a matching UUID.
+
+The view supports `calc_active_power`, `calc_active_power_in`, `calc_active_power_out` and `calc_stored_energy` with portfolio technology selectors.
+Native PSIN operational variable types can also be read with `read_component_result`.
+Pass `meta` to a metric call when more than one formulation stores the same technology.
+
+Investment decisions, weighted period aggregates and financial totals are outside this view.
+Returned power and energy remain in their native MW and MWh units.
+Time aggregation does not apply representative-period weights.
+The native result object and portfolio are not modified.
+
+See also [`compute`](@ref) and [`ComponentTimedMetric`](@ref).
+"""
+operational_results(results::IS.Results) =
+    _operational_results(results, IS.get_source_data(results))
+
+_operational_results(results::IS.Results, source) = throw(
+    ArgumentError(
+        "Operational investment results require native optimization results " *
+        "with the original portfolio attached."),
+)
+
+function _operational_results(results::ISOPT.OptimizationProblemResults,
+    portfolio::PSIP.Portfolio)
+    IS.get_uuid(portfolio) == ISOPT.get_source_data_uuid(results) ||
+        throw(ArgumentError("The attached portfolio UUID does not match the results."))
+    timestamps = PSIN.get_timestamps(results)
+    isempty(timestamps) && throw(ArgumentError("Operational results have no timestamps."))
+    (issorted(timestamps) && allunique(timestamps)) || throw(ArgumentError(
+        "Operational timestamps must be unique and increasing."))
+    return InvestmentOperationalResults(results, portfolio)
+end
+
+IS.get_source_data(results::InvestmentOperationalResults) = results.portfolio
+IS.get_base_power(results::InvestmentOperationalResults) =
+    ISOPT.get_model_base_power(results.results)
+IS.get_timestamp(results::InvestmentOperationalResults) =
+    PSIN.get_timestamps(results.results)
+ISOPT.get_timestamps(results::InvestmentOperationalResults) =
+    PSIN.get_timestamps(results.results)
+
+# Delegate availability to the portfolio API without changing global portfolio behavior.
+IS.get_components(
+    ::Type{T},
+    results::InvestmentOperationalResults,
+) where {T <: PSIP.Technology} =
+    PSIP.get_available_technologies(T, results.portfolio)
+IS.get_components(filter_func::Function, ::Type{T},
+    results::InvestmentOperationalResults) where {T <: PSIP.Technology} =
+    Iterators.filter(filter_func, PSIP.get_available_technologies(T, results.portfolio))
+IS.get_component(::Type{T}, results::InvestmentOperationalResults,
+    name::AbstractString) where {T <: PSIP.Technology} =
+    PSIP.get_available_technology(T, results.portfolio, name)
+
+function IS.get_components(
+    ::Type{T},
+    ::InvestmentOperationalResults,
+) where {T <: IS.InfrastructureSystemsComponent}
+    throw(
+        ArgumentError(
+            "Select a portfolio technology type such as " *
+            "SupplyTechnology{ThermalStandard} for investment results.",
+        ),
+    )
+end
+function IS.get_components(filter_func::Function, ::Type{T},
+    results::InvestmentOperationalResults) where {T <: IS.InfrastructureSystemsComponent}
+    return IS.get_components(T, results)
+end
+function IS.get_component(::Type{T}, results::InvestmentOperationalResults,
+    name::AbstractString) where {T <: IS.InfrastructureSystemsComponent}
+    return IS.get_components(T, results)
+end
+
+# Existing metrics retain their meanings while the result entry types change.
+_operational_entry(entry::Type, technology::PSIP.Technology) = throw(
+    NoResultError(
+        "The operational view does not support $entry for $(typeof(technology)). " *
+        "Use time-step operational variables. Investment values, weighted energy " *
+        "and cost reporting require their own context."),
+)
+_operational_entry(entry::Type{<:PSIN.OperationsVariableType}, ::PSIP.Technology) = entry
+_operational_entry(::Type{PSI.ActivePowerVariable}, ::PSIP.SupplyTechnology) =
+    PSIN.ActivePowerVariable
+_operational_entry(::Type{PSI.ActivePowerInVariable}, ::PSIP.StorageTechnology) =
+    PSIN.ActiveInPowerVariable
+_operational_entry(::Type{PSI.ActivePowerOutVariable}, ::PSIP.StorageTechnology) =
+    PSIN.ActiveOutPowerVariable
+_operational_entry(::Type{PSI.EnergyVariable}, ::PSIP.StorageTechnology) =
+    PSIN.StateOfChargeVariable
+
+function _technology_key(results::InvestmentOperationalResults, tables, native_entry::Type,
+    technology::PSIP.Technology, meta::Union{Nothing, AbstractString})
+    name = PSIP.get_name(technology)
+    stored = PSIP.get_technology(typeof(technology), results.portfolio, name)
+    (isnothing(stored) || IS.get_uuid(stored) != IS.get_uuid(technology)) &&
+        throw(ArgumentError("Technology $name does not belong to the results portfolio."))
+    candidates = filter(collect(keys(tables))) do key
+        ISOPT.get_entry_type(key) == native_entry &&
+            ISOPT.get_component_type(key) == typeof(technology) &&
+            (isnothing(meta) || key.meta == meta)
+    end
+    matching = filter(candidates) do key
+        "name" in names(tables[key]) || throw(
+            ArgumentError(
+                "$(ISOPT.encode_key_as_string(key)) has no technology-name column.",
+            ),
+        )
+        name in tables[key].name
+    end
+    isempty(matching) && throw(
+        NoResultError(
+            "No $native_entry result is stored for technology $name with meta=$(repr(meta)).",
+        ),
+    )
+    length(matching) == 1 || throw(
+        ArgumentError(
+            "Multiple formulations store $native_entry for $name. " *
+            "Select one with meta. Available values are $(repr(sort([key.meta for key in matching]))).",
+        ),
+    )
+    return only(matching)
+end
+
+function _validate_operational_axis(table, key, indices)
+    Set(names(table)) == Set(["time_index", "name", "value"]) ||
+        throw(
+            ArgumentError(
+                "$(ISOPT.encode_key_as_string(key)) must have " *
+                "time_index, name and value columns for operational analytics.",
+            ),
+        )
+    for component in DataFrames.groupby(table, :name)
+        sort(component.time_index) == indices || throw(
+            ArgumentError(
+                "$(ISOPT.encode_key_as_string(key)) does not have exactly one value " *
+                "per operational index for $(first(component.name)). " *
+                "Incomplete or differently indexed data cannot be read through this view.",
+            ),
+        )
+    end
+    return
+end
+
+function read_component_result(results::InvestmentOperationalResults,
+    entry::Type{<:EntryType}, technology::PSIP.Technology;
+    start_time::Union{Nothing, DateTime} = nothing,
+    len::Union{Int, Nothing} = nothing,
+    meta::Union{Nothing, AbstractString} = nothing,
+)
+    !isnothing(len) && len < 1 && throw(ArgumentError("len must be positive."))
+    variables = PSIN.get_variable_values(results.results)
+    key = _technology_key(results, variables,
+        _operational_entry(entry, technology), technology, meta)
+    # Check the complete axis before slicing, including when len matches a period count.
+    _validate_operational_axis(variables[key], key,
+        eachindex(PSIN.get_timestamps(results.results)))
+    table = PSIN.read_variable(results.results, key;
+        start_time = start_time, len = len, table_format = IS.TableFormat.WIDE)
+    return table[!, [DATETIME_COL, PSIP.get_name(technology)]]
+end
+
 # TODO caching here too
 "Given an EntryType that applies to the System, fetch a single column of results"
 function read_system_result(res::IS.Results, entry::Type{<:SystemEntryType};

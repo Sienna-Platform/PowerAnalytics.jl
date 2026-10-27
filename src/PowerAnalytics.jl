@@ -21,7 +21,7 @@ export is_col_meta, set_col_meta, set_col_meta!, get_time_df, get_time_vec, get_
     get_time_agg_fn, with_component_agg_fn, with_time_agg_fn, metric_selector_to_string,
     get_agg_meta, set_agg_meta!, rebuild_metric
 export compute, compute_all, hcat_timed_dfs, aggregate_time, compose_metrics
-export create_problem_results_dict
+export create_problem_results_dict, operational_results
 export parse_generator_mapping_file, parse_injector_categories, parse_generator_categories
 export mean, weighted_mean, unweighted_sum
 
@@ -50,12 +50,17 @@ import InfrastructureSystems
 import PowerSimulations
 import PowerSimulations:
     get_system
+import PowerSystemsInvestments
+import PowerSystemsInvestmentsPortfolios
 import InteractiveUtils
 
 # ALIASES
 const PSY = PowerSystems
 const IS = InfrastructureSystems
 const PSI = PowerSimulations
+const PSIN = PowerSystemsInvestments
+const PSIP = PowerSystemsInvestmentsPortfolios
+const ISOPT = IS.Optimization
 
 # DOCUMENTATION CONFIG
 using DocStringExtensions
