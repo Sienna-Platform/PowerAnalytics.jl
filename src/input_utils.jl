@@ -216,21 +216,22 @@ struct InvestmentOperationalResults <: AbstractInvestmentResults
 end
 
 """
-    operational_results(results::InfrastructureSystems.Results)
+Create a PowerAnalytics results object for time-step operational variables from PSIN results.
 
-Create a PowerAnalytics view of time-step operational variables from investment results.
-The PSIN results must have their original portfolio attached with a matching UUID.
-
-The view supports `calc_active_power`, `calc_active_power_in`, `calc_active_power_out` and `calc_stored_energy` with portfolio technology selectors.
+The returned results support `calc_active_power`, `calc_active_power_in`, `calc_active_power_out` and `calc_stored_energy` with portfolio technology selectors.
 PSIN operational variable types can also be read with `read_component_result`.
 Pass `meta` to a metric call when more than one formulation stores the same technology.
 
-Investment decisions, weighted period aggregates and financial totals are outside this view.
+These operational results do not support investment decisions, weighted period aggregates or financial totals.
 Returned power and energy remain in MW and MWh.
 Time aggregation does not apply representative-period weights.
 The PSIN result object and portfolio are not modified.
 
-See also [`compute`](@ref) and [`ComponentTimedMetric`](@ref).
+# Arguments
+ - `results::InfrastructureSystems.Results` is the PSIN results object with its original portfolio attached and a matching UUID.
+
+# See also
+[`compute`](@ref) and [`ComponentTimedMetric`](@ref).
 """
 operational_results(results::IS.Results) =
     _operational_results(results, IS.get_source_data(results))
@@ -261,7 +262,7 @@ IS.get_source_data(results::AbstractInvestmentResults) = results.portfolio
 IS.get_base_power(results::AbstractInvestmentResults) =
     ISOPT.get_model_base_power(results.results)
 IS.get_timestamp(results::InvestmentOperationalResults) =
-    PSIN.get_timestamps(results.results)
+    ISOPT.get_timestamps(results)
 ISOPT.get_timestamps(results::InvestmentOperationalResults) =
     PSIN.get_timestamps(results.results)
 
@@ -273,7 +274,7 @@ IS.get_components(
     PSIP.get_available_technologies(T, results.portfolio)
 IS.get_components(filter_func::Function, ::Type{T},
     results::AbstractInvestmentResults) where {T <: PSIP.Technology} =
-    Iterators.filter(filter_func, PSIP.get_available_technologies(T, results.portfolio))
+    Iterators.filter(filter_func, IS.get_components(T, results))
 IS.get_component(::Type{T}, results::AbstractInvestmentResults,
     name::AbstractString) where {T <: PSIP.Technology} =
     PSIP.get_available_technology(T, results.portfolio, name)
@@ -301,7 +302,7 @@ end
 # Existing metrics retain their meanings while the result entry types change.
 _operational_entry(entry::Type, technology::PSIP.Technology) = throw(
     NoResultError(
-        "The operational view does not support $entry for $(typeof(technology)). " *
+        "Operational results do not support $entry for $(typeof(technology)). " *
         "Use time-step operational variables. Investment values, weighted energy " *
         "and cost reporting require their own context."),
 )
@@ -316,13 +317,14 @@ _operational_entry(::Type{PSI.EnergyVariable}, ::PSIP.StorageTechnology) =
     PSIN.StateOfChargeVariable
 
 function _technology_key(results::AbstractInvestmentResults, tables, entry::Type,
-    technology::PSIP.Technology, meta::Union{Nothing, AbstractString})
+    technology::PSIP.Technology, meta::Union{Nothing, AbstractString};
+    candidate_keys = keys(tables))
     name = PSIP.get_name(technology)
     stored = PSIP.get_technology(typeof(technology), results.portfolio, name)
     (isnothing(stored) || IS.get_uuid(stored) != IS.get_uuid(technology)) &&
         throw(ArgumentError("Technology $name does not belong to the results portfolio."))
-    candidates = filter(collect(keys(tables))) do key
-        ISOPT.get_entry_type(key) == entry &&
+    candidates = filter(collect(candidate_keys)) do key
+        haskey(tables, key) && ISOPT.get_entry_type(key) == entry &&
             ISOPT.get_component_type(key) == typeof(technology) &&
             (isnothing(meta) || key.meta == meta)
     end
@@ -361,7 +363,7 @@ function _validate_result_axis(table, key, indices)
             ArgumentError(
                 "$(ISOPT.encode_key_as_string(key)) does not have exactly one value " *
                 "per time index for $(first(component.name)). " *
-                "Incomplete or differently indexed data cannot be read through this view.",
+                "Incomplete or differently indexed data cannot be read through this results object.",
             ),
         )
     end
@@ -393,18 +395,24 @@ struct InvestmentCapacityResults <: AbstractInvestmentResults
 end
 
 """
-    investment_results(results::InfrastructureSystems.Results; periods)
-
-Create a planning-period view for capacity metrics from PSIN results with their original portfolio attached.
-Supply `periods` as ordered, nonoverlapping `(start_date, end_date)` tuples of `Dates.Date` values from the model inputs.
-PSIN results do not retain this investment-period mapping.
+Create a results object for planning-period capacity metrics from PSIN results.
+The returned object references the existing PSIN results and portfolio and stores the investment-period mapping.
+PSIN results do not retain this mapping.
 
 Computed tables use period start dates in the `DateTime` column.
-The capacity-additions metric converts builds to MW using PSIN's investment unit sizes and installed capacity comes from its cumulative-capacity expressions.
+Capacity addition metrics convert builds to MW for power and MWh for storage energy using PSIN's investment unit sizes.
+Installed capacity comes from PSIN's cumulative-capacity expressions.
 Direct `read_component_result` calls retain stored values, including unit counts for integer builds.
-The view supports continuous and integer supply and storage-power investment.
+These results support continuous and integer supply, storage-power and storage-energy investment.
 
-See also [`operational_results`](@ref) and [`get_investment_periods`](@ref).
+# Arguments
+
+ - `results::InfrastructureSystems.Results` is the PSIN results object with its original portfolio attached and a matching UUID.
+ - `periods::AbstractVector{<:Tuple{Dates.Date, Dates.Date}}` provides the required ordered, nonoverlapping `(start_date, end_date)` tuples from the model inputs.
+
+# See also
+
+[`operational_results`](@ref) and [`get_investment_periods`](@ref).
 """
 investment_results(results::IS.Results;
     periods::AbstractVector{<:Tuple{Dates.Date, Dates.Date}}) =
@@ -433,9 +441,11 @@ function _investment_results(results::ISOPT.OptimizationProblemResults,
     return InvestmentCapacityResults(results, portfolio, collect(periods))
 end
 
-"Return a copy of the ordered investment-period intervals for a capacity-results view."
+"Return a copy of the ordered investment-period intervals from investment capacity results."
 get_investment_periods(results::IS.Results) =
-    throw(ArgumentError("Investment periods require an investment_results view."))
+    throw(
+        ArgumentError("Investment periods require results returned by investment_results."),
+    )
 get_investment_periods(results::InvestmentCapacityResults) = copy(results.periods)
 ISOPT.get_timestamps(results::InvestmentCapacityResults) =
     DateTime.(first.(results.periods))
@@ -450,7 +460,7 @@ function _compute_meta_timed!(val, metric, results::InvestmentCapacityResults)
 end
 
 _investment_window(results::IS.Results; kwargs...) =
-    throw(NoResultError("Capacity metrics require an investment_results view."))
+    throw(NoResultError("Capacity metrics require results returned by investment_results."))
 
 function _investment_window(results::InvestmentCapacityResults;
     start_time::Union{Nothing, DateTime} = nothing, len::Union{Nothing, Int} = nothing)
@@ -470,30 +480,50 @@ end
 _capacity_entries(results::IS.Results, component::IS.InfrastructureSystemsComponent) =
     throw(
         NoResultError(
-            "Capacity reporting requires an investment_results view and a supported supply or storage technology.",
+            "Capacity reporting requires results returned by investment_results and a supported supply or storage technology.",
         ),
     )
+function _capacity_entries(results::IS.Results,
+    technology::IS.InfrastructureSystemsComponent, entry::Type{<:EntryType})
+    entries = _capacity_entries(results, technology)
+    entry in entries || throw(
+        NoResultError(
+            "Investment capacity results do not support $entry for $(typeof(technology)).",
+        ),
+    )
+    return entries
+end
 _capacity_entries(::InvestmentCapacityResults, ::PSIP.SupplyTechnology) =
     (PSIN.BuildCapacity, PSIN.CumulativeCapacity)
 _capacity_entries(::InvestmentCapacityResults, ::PSIP.StorageTechnology) =
     (PSIN.BuildPowerCapacity, PSIN.CumulativePowerCapacity)
+_capacity_entries(::InvestmentCapacityResults, ::PSIP.StorageTechnology,
+    ::Type{<:Union{PSIN.BuildEnergyCapacity, PSIN.CumulativeEnergyCapacity}}) =
+    (PSIN.BuildEnergyCapacity, PSIN.CumulativeEnergyCapacity)
 
 function read_component_result(results::InvestmentCapacityResults,
     entry::Type{<:EntryType}, technology::PSIP.Technology;
     start_time::Union{Nothing, DateTime} = nothing,
     len::Union{Nothing, Int} = nothing, meta::Union{Nothing, AbstractString} = nothing)
-    build_entry, installed_entry = _capacity_entries(results, technology)
-    entry in (build_entry, installed_entry) || throw(
-        NoResultError(
-            "The investment view does not support $entry for $(typeof(technology)).",
-        ),
-    )
+    installed_entry = last(_capacity_entries(results, technology, entry))
     tables = if entry == installed_entry
         PSIN.get_expression_values(results.results)
     else
         PSIN.get_variable_values(results.results)
     end
     key = _technology_key(results, tables, entry, technology, meta)
+    return read_component_result(results, key, technology;
+        start_time = start_time, len = len)
+end
+
+function read_component_result(results::InvestmentCapacityResults,
+    key::Union{ISOPT.VariableKey, ISOPT.ExpressionKey}, technology::PSIP.Technology;
+    start_time::Union{Nothing, DateTime} = nothing,
+    len::Union{Nothing, Int} = nothing)
+    entry = ISOPT.get_entry_type(key)
+    _capacity_entries(results, technology, entry)
+    tables = ISOPT.get_result_values(results.results, key)
+    _technology_key(results, tables, entry, technology, key.meta; candidate_keys = (key,))
     table = tables[key]
     _validate_result_axis(table, key, eachindex(results.periods))
     key.meta in (string(PSIN.ContinuousInvestment), string(PSIN.IntegerInvestment)) ||

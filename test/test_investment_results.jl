@@ -182,12 +182,11 @@ end
     for (test_data, formulation) in ((investment_test_data, PSIN.ContinuousInvestment),
         (integer_investment_test_data, PSIN.IntegerInvestment))
         results = investment_results(test_data.results; periods = test_data.periods)
-        for technology in [first(test_data.thermal), test_data.battery]
-            build_entry, installed_entry = if technology isa PSIP.SupplyTechnology
-                (PSIN.BuildCapacity, PSIN.CumulativeCapacity)
-            else
-                (PSIN.BuildPowerCapacity, PSIN.CumulativePowerCapacity)
-            end
+        for (technology, build_entry, installed_entry) in (
+            (first(test_data.thermal), PSIN.BuildCapacity, PSIN.CumulativeCapacity),
+            (test_data.battery, PSIN.BuildPowerCapacity, PSIN.CumulativePowerCapacity),
+            (test_data.battery, PSIN.BuildEnergyCapacity, PSIN.CumulativeEnergyCapacity),
+        )
             for (key, tables) in (
                 (PSIN.VariableKey(build_entry, typeof(technology), string(formulation)),
                     PSIN.get_variable_values(test_data.results)),
@@ -205,6 +204,9 @@ end
                 entry = ISOPT.get_entry_type(key)
                 @test PA.read_component_result(results, entry, technology) == expected
                 @test PA.read_component_result(results, entry, technology;
+                    start_time = DateTime(2035, 1, 1), len = 1) == expected[2:2, :]
+                @test PA.read_component_result(results, key, technology) == expected
+                @test PA.read_component_result(results, key, technology;
                     start_time = DateTime(2035, 1, 1), len = 1) == expected[2:2, :]
             end
         end
@@ -258,10 +260,60 @@ end
     end
 end
 
+@testset "Test storage energy capacity metrics" begin
+    for (test_data, formulation) in ((investment_test_data, PSIN.ContinuousInvestment),
+        (integer_investment_test_data, PSIN.IntegerInvestment))
+        psin_results = test_data.results
+        results = investment_results(psin_results; periods = test_data.periods)
+        battery = test_data.battery
+        variables = deepcopy(PSIN.get_variable_values(psin_results))
+        expressions = deepcopy(PSIN.get_expression_values(psin_results))
+        unit_size =
+            formulation == PSIN.IntegerInvestment ? PSIP.get_unit_size_energy(battery) : 1.0
+        for (metric, key, tables, multiplier) in (
+            (calc_storage_energy_additions,
+                PSIN.VariableKey(
+                    PSIN.BuildEnergyCapacity,
+                    typeof(battery),
+                    string(formulation),
+                ),
+                variables, unit_size),
+            (calc_installed_storage_energy,
+                PSIN.ExpressionKey(
+                    PSIN.CumulativeEnergyCapacity,
+                    typeof(battery),
+                    string(formulation),
+                ),
+                expressions, 1.0),
+        )
+            expected =
+                sort(filter(:name => ==(PSIP.get_name(battery)), tables[key]), :time_index)
+            computed = compute(metric, results, battery)
+            @test get_time_vec(computed) == DateTime.(first.(test_data.periods))
+            @test get_data_vec(computed) ≈ expected.value .* multiplier
+            window = compute(
+                metric,
+                results,
+                battery;
+                start_time = DateTime(2035, 1, 1),
+                len = 1,
+            )
+            @test get_data_vec(window) ≈ get_data_vec(computed)[2:2]
+            @test metadata(window, "investment_periods") == test_data.periods[2:2]
+        end
+        additions = compute(calc_storage_energy_additions, results, battery)
+        installed = compute(calc_installed_storage_energy, results, battery)
+        @test sum(get_data_vec(additions)) > 0.0
+        @test get_data_vec(installed) ≈ cumsum(get_data_vec(additions))
+        @test PSIN.get_variable_values(psin_results) == variables
+        @test PSIN.get_expression_values(psin_results) == expressions
+    end
+end
+
 @testset "Test investment technology categories" begin
-    test_data = investment_test_data
+    _, thermal, battery, _, _ = make_investment_portfolio()
     mapping = PA.get_generator_mapping()
-    gas = first(test_data.thermal)
+    gas = first(thermal)
     wind = PSIP.SupplyTechnology{PSY.RenewableDispatch}(;
         name = "wind",
         id = 6,
@@ -272,21 +324,20 @@ end
     )
     @test PA.get_generator_category(gas, mapping) == "NG-CT"
     @test PA.get_generator_category(wind, mapping) == "Wind"
-    @test PA.get_generator_category(test_data.battery, mapping) == "Storage"
+    @test PA.get_generator_category(battery, mapping) == "Storage"
 
-    multifuel = deepcopy(gas)
-    PSIP.set_fuel!(multifuel,
+    PSIP.set_fuel!(gas,
         [PSY.ThermalFuels.NATURAL_GAS, PSY.ThermalFuels.DISTILLATE_FUEL_OIL])
-    @test_throws ArgumentError PA.get_generator_category(multifuel, mapping)
+    @test_throws ArgumentError PA.get_generator_category(gas, mapping)
 end
 
 @testset "Test investment category mapping overrides" begin
+    _, thermal, battery, _, _ = make_investment_portfolio()
     mapping = PA.get_generator_mapping()
-    for (original, fuel, category) in (
-        (first(investment_test_data.thermal), "NATURAL_GAS", "NG-CT"),
-        (investment_test_data.battery, nothing, "Storage"),
+    for (technology, fuel, category) in (
+        (first(thermal), "NATURAL_GAS", "NG-CT"),
+        (battery, nothing, "Storage"),
     )
-        technology = deepcopy(original)
         PSIP.get_ext(technology)["ext_category"] = "custom"
         @test PA.get_generator_category(technology, mapping) == category
         custom_mapping = copy(mapping)
@@ -298,10 +349,10 @@ end
 end
 
 @testset "Test investment categories with missing metadata" begin
+    _, thermal, battery, _, _ = make_investment_portfolio()
     mapping = PA.get_generator_mapping()
-    gas = deepcopy(first(investment_test_data.thermal))
+    gas = first(thermal)
     PSIP.set_fuel!(gas, PSY.ThermalFuels[])
-    battery = deepcopy(investment_test_data.battery)
     PSIP.set_prime_mover_type!(battery, PSY.PrimeMovers.OT)
     for technology in (gas, battery)
         category =
@@ -350,6 +401,24 @@ end
     @test get_data_cols(empty_result) == [get_name(empty_selector)]
     @test get_time_vec(empty_result) == get_time_vec(additions)
     @test get_data_vec(empty_result) == [0.0, 0.0]
+end
+
+@testset "Test storage energy capacity aggregation" begin
+    test_data = investment_test_data
+    results = investment_results(test_data.results; periods = test_data.periods)
+    selector = make_selector(typeof(test_data.battery); groupby = :all)
+    empty_selector = make_selector(t -> false, typeof(test_data.battery); groupby = :all)
+    for (metric, aggregate) in ((calc_storage_energy_additions, sum),
+        (calc_installed_storage_energy, last))
+        grouped = compute(metric, results, selector)
+        expected = get_data_vec(compute(metric, results, test_data.battery))
+        @test get_data_vec(grouped) ≈ expected
+        @test get_data_vec(aggregate_time(grouped)) ≈ [aggregate(expected)]
+        @test metadata(grouped, "time_axis") == "investment_period"
+        empty_result = compute(metric, results, empty_selector)
+        @test get_time_vec(empty_result) == get_time_vec(grouped)
+        @test get_data_vec(empty_result) == [0.0, 0.0]
+    end
 end
 
 @testset "Test compute_all with investment capacity results" begin
@@ -413,6 +482,15 @@ end
     test_data = investment_test_data
     technology = first(test_data.thermal)
     results = investment_results(test_data.results; periods = test_data.periods)
+    results_uc, _ = run_test_sim(TEST_RESULT_DIR, TEST_SIM_NAME)
+    for (metric, component_type) in (
+        (calc_capacity_additions, ThermalStandard),
+        (calc_installed_capacity, ThermalStandard),
+        (calc_storage_energy_additions, EnergyReservoirStorage),
+        (calc_installed_storage_energy, EnergyReservoirStorage),
+    )
+        @test_throws PA.NoResultError metric(make_selector(component_type), results_uc)
+    end
     @test_throws ArgumentError investment_results(
         make_investment_results(test_data; attach_portfolio = false);
         periods = test_data.periods)
@@ -427,4 +505,31 @@ end
     @test_throws PA.NoResultError compute(calc_active_power, results, technology)
     @test_throws PA.NoResultError PA.read_component_result(results,
         PSIN.BuildPowerCapacity, technology)
+    @test_throws PA.NoResultError PA.read_component_result(results,
+        PSIN.BuildEnergyCapacity, technology)
+    key = PSIN.VariableKey(PSIN.BuildCapacity, typeof(technology),
+        string(PSIN.ContinuousInvestment))
+    _, other_thermal, _, _, _ = make_investment_portfolio()
+    @test_throws ArgumentError PA.read_component_result(results, key, first(other_thermal))
+    @test_throws PA.NoResultError PA.read_component_result(
+        results,
+        key,
+        test_data.thermal[3],
+    )
+    for invalid_key in (
+        PSIN.VariableKey(PSIN.BuildCapacity, typeof(technology), "MissingInvestment"),
+        PSIN.VariableKey(PSIN.ActivePowerVariable, typeof(technology),
+            string(PSIN.BasicDispatch)),
+    )
+        @test_throws PA.NoResultError PA.read_component_result(
+            results,
+            invalid_key,
+            technology,
+        )
+    end
+    for metric in (calc_storage_energy_additions, calc_installed_storage_energy)
+        @test_throws PA.NoResultError compute(metric, results, technology)
+        @test_throws PA.NoResultError compute(metric,
+            operational_results(test_data.results), test_data.battery)
+    end
 end
