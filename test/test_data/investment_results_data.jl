@@ -92,8 +92,18 @@ function make_investment_portfolio()
     return portfolio, thermal, battery, line, days
 end
 
-function run_test_investment_prob()
+function run_test_investment_prob(;
+    supply_investment = PSIN.ContinuousInvestment,
+    storage_investment = PSIN.ContinuousInvestment,
+)
     portfolio, thermal, battery, line, days = make_investment_portfolio()
+    if supply_investment == PSIN.IntegerInvestment
+        foreach(t -> PSIP.set_unit_size!(t, 25.0), thermal)
+    end
+    if storage_investment == PSIN.IntegerInvestment
+        PSIP.set_unit_size_discharge!(battery, 10.0)
+        PSIP.set_unit_size_energy!(battery, 40.0)
+    end
     periods = [(Date(y, 1, 1), Date(y + 4, 12, 31)) for y in (2030, 2035)]
     template = PSIN.InvestmentModelTemplate(
         PSIN.DiscountedCashFlow(0.07, Year(2025), periods),
@@ -109,12 +119,12 @@ function run_test_investment_prob()
         ),
         (
             PSIP.SupplyTechnology{PSY.ThermalStandard},
-            PSIN.ContinuousInvestment,
+            supply_investment,
             PSIN.BasicDispatch,
         ),
         (
             PSIP.StorageTechnology{PSY.EnergyReservoirStorage},
-            PSIN.ContinuousInvestment,
+            storage_investment,
             PSIN.CyclicalStorageDispatch,
         ),
         (
@@ -147,11 +157,12 @@ function run_test_investment_prob()
         typeof(first(thermal)),
         string(PSIN.BasicDispatch),
     )
-    return (; results, thermal, battery, line, timestamps, dispatch_key)
+    return (; results, thermal, battery, line, timestamps, dispatch_key, periods)
 end
 
 function make_investment_results(test_data;
     dispatch_indices = nothing,
+    investment_indices = nothing,
     other_formulation = :none,
     attach_portfolio = true,
     source_uuid = nothing,
@@ -165,6 +176,20 @@ function make_investment_results(test_data;
         variables[dispatch_key] = vcat([
             filter(row -> row.time_index == t, table) for t in dispatch_indices
         ]...)
+    end
+    if !isnothing(investment_indices)
+        for tables in (variables, PSIN.get_expression_values(results))
+            for key in keys(tables)
+                PSIN.is_investment_entry(ISOPT.get_entry_type(key)) || continue
+                table = tables[key]
+                tables[key] = vcat(
+                    [
+                        filter(row -> row.time_index == t, table) for
+                        t in investment_indices
+                    ]...,
+                )
+            end
+        end
     end
     if other_formulation != :none
         other_key = PSIN.VariableKey(

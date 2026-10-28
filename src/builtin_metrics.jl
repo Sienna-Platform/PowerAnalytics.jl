@@ -73,6 +73,7 @@ import
     ..ResultsTimelessMetric,
     ..PSY,
     ..PSI,
+    ..PSIN,
     ..IS,
     ..SystemTimedMetric,
     ..Component,
@@ -85,6 +86,10 @@ import
     ..unweighted_sum,
     ..mean,
     ..read_component_result,
+    .._capacity_entries,
+    .._technology_key,
+    .._investment_window,
+    ..get_eval_zero,
     ..rebuild_selector,
     ..DataFrame,
     ..DATETIME_COL,
@@ -113,7 +118,59 @@ export calc_active_power,
     calc_is_slack_up,
     calc_sum_objective_value,
     calc_sum_solve_time,
-    calc_sum_bytes_alloc
+    calc_sum_bytes_alloc,
+    calc_capacity_additions,
+    calc_installed_capacity
+
+"""
+New supply capacity or storage discharge power added in each investment period in MW.
+
+Requires a [`PowerAnalytics.investment_results`](@ref) view.
+Component and time aggregation sum capacity without annualizing period values.
+"""
+const calc_capacity_additions = ComponentTimedMetric(;
+    name = "CapacityAdditions",
+    eval_fn = (results, component; meta = nothing, kwargs...) -> let
+        entry = first(_capacity_entries(results, component))
+        variables = PSIN.get_variable_values(results.results)
+        key = _technology_key(results, variables, entry, component, meta)
+        val = read_component_result(results, entry, component; meta = key.meta, kwargs...)
+        formulation = if key.meta == string(PSIN.IntegerInvestment)
+            PSIN.IntegerInvestment()
+        else
+            PSIN.ContinuousInvestment()
+        end
+        multiplier = PSIN.get_unit_size(entry(), component, formulation)
+        isfinite(multiplier) ||
+            throw(
+                ArgumentError(
+                    "Invalid investment unit size for $(IS.get_name(component)).",
+                ),
+            )
+        get_data_vec(val) .*= multiplier
+        return val
+    end,
+    eval_zero = (results; start_time = nothing, len = nothing, meta = nothing) -> let
+        window = _investment_window(results; start_time = start_time, len = len)
+        return DataFrame(DATETIME_COL => IS.get_timestamp(results)[window],
+            "" => zeros(length(window)))
+    end,
+)
+
+"""
+Total installed supply capacity or storage discharge power in each investment period in MW.
+
+Requires a [`PowerAnalytics.investment_results`](@ref) view.
+Component aggregation sums capacity and time aggregation takes the last period's capacity.
+"""
+const calc_installed_capacity = ComponentTimedMetric(;
+    name = "InstalledCapacity",
+    eval_fn = (results, component; kwargs...) ->
+        read_component_result(results, last(_capacity_entries(results, component)),
+            component; kwargs...),
+    time_agg_fn = last,
+    eval_zero = get_eval_zero(calc_capacity_additions),
+)
 
 # NOTE ActivePowerVariable is in units of megawatts per simulation time period, so it's
 # actually energy and it makes sense to sum it up.

@@ -373,6 +373,10 @@ function _compute_one(metric::ComponentTimedMetric, results::IS.Results,
     if length(vals) == 0
         if !isnothing(get_eval_zero(metric))
             result = get_eval_zero(metric)(results; kwargs...)
+            result = DataFrames.rename(
+                result,
+                first(get_data_cols(result)) => get_name(selector),
+            )
         else
             time_col = Vector{Union{Missing, DateTime}}([missing])
             data_col = agg_fn(Vector{Float64}())

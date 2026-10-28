@@ -185,177 +185,6 @@ function read_component_result(res::IS.Results, entry::Type{<:EntryType}, comp::
     return res[!, [DATETIME_COL, get_name(comp)]]
 end
 
-struct InvestmentOperationalResults <: IS.Results
-    results::ISOPT.OptimizationProblemResults
-    portfolio::PSIP.Portfolio
-end
-
-"""
-    operational_results(results::InfrastructureSystems.Results)
-
-Create a PowerAnalytics view of time-step operational variables from investment results.
-The native results must have their original portfolio attached with a matching UUID.
-
-The view supports `calc_active_power`, `calc_active_power_in`, `calc_active_power_out` and `calc_stored_energy` with portfolio technology selectors.
-Native PSIN operational variable types can also be read with `read_component_result`.
-Pass `meta` to a metric call when more than one formulation stores the same technology.
-
-Investment decisions, weighted period aggregates and financial totals are outside this view.
-Returned power and energy remain in their native MW and MWh units.
-Time aggregation does not apply representative-period weights.
-The native result object and portfolio are not modified.
-
-See also [`compute`](@ref) and [`ComponentTimedMetric`](@ref).
-"""
-operational_results(results::IS.Results) =
-    _operational_results(results, IS.get_source_data(results))
-
-_operational_results(results::IS.Results, source) = throw(
-    ArgumentError(
-        "Operational investment results require native optimization results " *
-        "with the original portfolio attached."),
-)
-
-function _operational_results(results::ISOPT.OptimizationProblemResults,
-    portfolio::PSIP.Portfolio)
-    IS.get_uuid(portfolio) == ISOPT.get_source_data_uuid(results) ||
-        throw(ArgumentError("The attached portfolio UUID does not match the results."))
-    timestamps = PSIN.get_timestamps(results)
-    isempty(timestamps) && throw(ArgumentError("Operational results have no timestamps."))
-    (issorted(timestamps) && allunique(timestamps)) || throw(ArgumentError(
-        "Operational timestamps must be unique and increasing."))
-    return InvestmentOperationalResults(results, portfolio)
-end
-
-IS.get_source_data(results::InvestmentOperationalResults) = results.portfolio
-IS.get_base_power(results::InvestmentOperationalResults) =
-    ISOPT.get_model_base_power(results.results)
-IS.get_timestamp(results::InvestmentOperationalResults) =
-    PSIN.get_timestamps(results.results)
-ISOPT.get_timestamps(results::InvestmentOperationalResults) =
-    PSIN.get_timestamps(results.results)
-
-# Delegate availability to the portfolio API without changing global portfolio behavior.
-IS.get_components(
-    ::Type{T},
-    results::InvestmentOperationalResults,
-) where {T <: PSIP.Technology} =
-    PSIP.get_available_technologies(T, results.portfolio)
-IS.get_components(filter_func::Function, ::Type{T},
-    results::InvestmentOperationalResults) where {T <: PSIP.Technology} =
-    Iterators.filter(filter_func, PSIP.get_available_technologies(T, results.portfolio))
-IS.get_component(::Type{T}, results::InvestmentOperationalResults,
-    name::AbstractString) where {T <: PSIP.Technology} =
-    PSIP.get_available_technology(T, results.portfolio, name)
-
-function IS.get_components(
-    ::Type{T},
-    ::InvestmentOperationalResults,
-) where {T <: IS.InfrastructureSystemsComponent}
-    throw(
-        ArgumentError(
-            "Select a portfolio technology type such as " *
-            "SupplyTechnology{ThermalStandard} for investment results.",
-        ),
-    )
-end
-function IS.get_components(filter_func::Function, ::Type{T},
-    results::InvestmentOperationalResults) where {T <: IS.InfrastructureSystemsComponent}
-    return IS.get_components(T, results)
-end
-function IS.get_component(::Type{T}, results::InvestmentOperationalResults,
-    name::AbstractString) where {T <: IS.InfrastructureSystemsComponent}
-    return IS.get_components(T, results)
-end
-
-# Existing metrics retain their meanings while the result entry types change.
-_operational_entry(entry::Type, technology::PSIP.Technology) = throw(
-    NoResultError(
-        "The operational view does not support $entry for $(typeof(technology)). " *
-        "Use time-step operational variables. Investment values, weighted energy " *
-        "and cost reporting require their own context."),
-)
-_operational_entry(entry::Type{<:PSIN.OperationsVariableType}, ::PSIP.Technology) = entry
-_operational_entry(::Type{PSI.ActivePowerVariable}, ::PSIP.SupplyTechnology) =
-    PSIN.ActivePowerVariable
-_operational_entry(::Type{PSI.ActivePowerInVariable}, ::PSIP.StorageTechnology) =
-    PSIN.ActiveInPowerVariable
-_operational_entry(::Type{PSI.ActivePowerOutVariable}, ::PSIP.StorageTechnology) =
-    PSIN.ActiveOutPowerVariable
-_operational_entry(::Type{PSI.EnergyVariable}, ::PSIP.StorageTechnology) =
-    PSIN.StateOfChargeVariable
-
-function _technology_key(results::InvestmentOperationalResults, tables, native_entry::Type,
-    technology::PSIP.Technology, meta::Union{Nothing, AbstractString})
-    name = PSIP.get_name(technology)
-    stored = PSIP.get_technology(typeof(technology), results.portfolio, name)
-    (isnothing(stored) || IS.get_uuid(stored) != IS.get_uuid(technology)) &&
-        throw(ArgumentError("Technology $name does not belong to the results portfolio."))
-    candidates = filter(collect(keys(tables))) do key
-        ISOPT.get_entry_type(key) == native_entry &&
-            ISOPT.get_component_type(key) == typeof(technology) &&
-            (isnothing(meta) || key.meta == meta)
-    end
-    matching = filter(candidates) do key
-        "name" in names(tables[key]) || throw(
-            ArgumentError(
-                "$(ISOPT.encode_key_as_string(key)) has no technology-name column.",
-            ),
-        )
-        name in tables[key].name
-    end
-    isempty(matching) && throw(
-        NoResultError(
-            "No $native_entry result is stored for technology $name with meta=$(repr(meta)).",
-        ),
-    )
-    length(matching) == 1 || throw(
-        ArgumentError(
-            "Multiple formulations store $native_entry for $name. " *
-            "Select one with meta. Available values are $(repr(sort([key.meta for key in matching]))).",
-        ),
-    )
-    return only(matching)
-end
-
-function _validate_operational_axis(table, key, indices)
-    Set(names(table)) == Set(["time_index", "name", "value"]) ||
-        throw(
-            ArgumentError(
-                "$(ISOPT.encode_key_as_string(key)) must have " *
-                "time_index, name and value columns for operational analytics.",
-            ),
-        )
-    for component in DataFrames.groupby(table, :name)
-        sort(component.time_index) == indices || throw(
-            ArgumentError(
-                "$(ISOPT.encode_key_as_string(key)) does not have exactly one value " *
-                "per operational index for $(first(component.name)). " *
-                "Incomplete or differently indexed data cannot be read through this view.",
-            ),
-        )
-    end
-    return
-end
-
-function read_component_result(results::InvestmentOperationalResults,
-    entry::Type{<:EntryType}, technology::PSIP.Technology;
-    start_time::Union{Nothing, DateTime} = nothing,
-    len::Union{Int, Nothing} = nothing,
-    meta::Union{Nothing, AbstractString} = nothing,
-)
-    !isnothing(len) && len < 1 && throw(ArgumentError("len must be positive."))
-    variables = PSIN.get_variable_values(results.results)
-    key = _technology_key(results, variables,
-        _operational_entry(entry, technology), technology, meta)
-    # Check the complete axis before slicing, including when len matches a period count.
-    _validate_operational_axis(variables[key], key,
-        eachindex(PSIN.get_timestamps(results.results)))
-    table = PSIN.read_variable(results.results, key;
-        start_time = start_time, len = len, table_format = IS.TableFormat.WIDE)
-    return table[!, [DATETIME_COL, PSIP.get_name(technology)]]
-end
-
 # TODO caching here too
 "Given an EntryType that applies to the System, fetch a single column of results"
 function read_system_result(res::IS.Results, entry::Type{<:SystemEntryType};
@@ -377,4 +206,303 @@ function read_system_result(res::IS.Results, entry::Type{<:SystemEntryType};
     # Whatever the non-time column is, rename it to something standard
     res = DataFrames.rename(res, findfirst(!=(DATETIME_COL), names(res)) => SYSTEM_COL)
     return res[!, [DATETIME_COL, SYSTEM_COL]]
+end
+
+abstract type AbstractInvestmentResults <: IS.Results end
+
+struct InvestmentOperationalResults <: AbstractInvestmentResults
+    results::ISOPT.OptimizationProblemResults
+    portfolio::PSIP.Portfolio
+end
+
+"""
+    operational_results(results::InfrastructureSystems.Results)
+
+Create a PowerAnalytics view of time-step operational variables from investment results.
+The PSIN results must have their original portfolio attached with a matching UUID.
+
+The view supports `calc_active_power`, `calc_active_power_in`, `calc_active_power_out` and `calc_stored_energy` with portfolio technology selectors.
+PSIN operational variable types can also be read with `read_component_result`.
+Pass `meta` to a metric call when more than one formulation stores the same technology.
+
+Investment decisions, weighted period aggregates and financial totals are outside this view.
+Returned power and energy remain in MW and MWh.
+Time aggregation does not apply representative-period weights.
+The PSIN result object and portfolio are not modified.
+
+See also [`compute`](@ref) and [`ComponentTimedMetric`](@ref).
+"""
+operational_results(results::IS.Results) =
+    _operational_results(results, IS.get_source_data(results))
+
+_operational_results(results::IS.Results, source) = throw(
+    ArgumentError(
+        "Operational investment results require PSIN optimization results " *
+        "with the original portfolio attached."),
+)
+
+function _validate_investment_source(results, portfolio)
+    IS.get_uuid(portfolio) == ISOPT.get_source_data_uuid(results) ||
+        throw(ArgumentError("The attached portfolio UUID does not match the results."))
+    return
+end
+
+function _operational_results(results::ISOPT.OptimizationProblemResults,
+    portfolio::PSIP.Portfolio)
+    _validate_investment_source(results, portfolio)
+    timestamps = PSIN.get_timestamps(results)
+    isempty(timestamps) && throw(ArgumentError("Operational results have no timestamps."))
+    (issorted(timestamps) && allunique(timestamps)) || throw(ArgumentError(
+        "Operational timestamps must be unique and increasing."))
+    return InvestmentOperationalResults(results, portfolio)
+end
+
+IS.get_source_data(results::AbstractInvestmentResults) = results.portfolio
+IS.get_base_power(results::AbstractInvestmentResults) =
+    ISOPT.get_model_base_power(results.results)
+IS.get_timestamp(results::InvestmentOperationalResults) =
+    PSIN.get_timestamps(results.results)
+ISOPT.get_timestamps(results::InvestmentOperationalResults) =
+    PSIN.get_timestamps(results.results)
+
+# Delegate availability to the portfolio API without changing global portfolio behavior.
+IS.get_components(
+    ::Type{T},
+    results::AbstractInvestmentResults,
+) where {T <: PSIP.Technology} =
+    PSIP.get_available_technologies(T, results.portfolio)
+IS.get_components(filter_func::Function, ::Type{T},
+    results::AbstractInvestmentResults) where {T <: PSIP.Technology} =
+    Iterators.filter(filter_func, PSIP.get_available_technologies(T, results.portfolio))
+IS.get_component(::Type{T}, results::AbstractInvestmentResults,
+    name::AbstractString) where {T <: PSIP.Technology} =
+    PSIP.get_available_technology(T, results.portfolio, name)
+
+function IS.get_components(
+    ::Type{T},
+    ::AbstractInvestmentResults,
+) where {T <: IS.InfrastructureSystemsComponent}
+    throw(
+        ArgumentError(
+            "Select a portfolio technology type such as " *
+            "SupplyTechnology{ThermalStandard} for investment results.",
+        ),
+    )
+end
+function IS.get_components(filter_func::Function, ::Type{T},
+    results::AbstractInvestmentResults) where {T <: IS.InfrastructureSystemsComponent}
+    return IS.get_components(T, results)
+end
+function IS.get_component(::Type{T}, results::AbstractInvestmentResults,
+    name::AbstractString) where {T <: IS.InfrastructureSystemsComponent}
+    return IS.get_components(T, results)
+end
+
+# Existing metrics retain their meanings while the result entry types change.
+_operational_entry(entry::Type, technology::PSIP.Technology) = throw(
+    NoResultError(
+        "The operational view does not support $entry for $(typeof(technology)). " *
+        "Use time-step operational variables. Investment values, weighted energy " *
+        "and cost reporting require their own context."),
+)
+_operational_entry(entry::Type{<:PSIN.OperationsVariableType}, ::PSIP.Technology) = entry
+_operational_entry(::Type{PSI.ActivePowerVariable}, ::PSIP.SupplyTechnology) =
+    PSIN.ActivePowerVariable
+_operational_entry(::Type{PSI.ActivePowerInVariable}, ::PSIP.StorageTechnology) =
+    PSIN.ActiveInPowerVariable
+_operational_entry(::Type{PSI.ActivePowerOutVariable}, ::PSIP.StorageTechnology) =
+    PSIN.ActiveOutPowerVariable
+_operational_entry(::Type{PSI.EnergyVariable}, ::PSIP.StorageTechnology) =
+    PSIN.StateOfChargeVariable
+
+function _technology_key(results::AbstractInvestmentResults, tables, entry::Type,
+    technology::PSIP.Technology, meta::Union{Nothing, AbstractString})
+    name = PSIP.get_name(technology)
+    stored = PSIP.get_technology(typeof(technology), results.portfolio, name)
+    (isnothing(stored) || IS.get_uuid(stored) != IS.get_uuid(technology)) &&
+        throw(ArgumentError("Technology $name does not belong to the results portfolio."))
+    candidates = filter(collect(keys(tables))) do key
+        ISOPT.get_entry_type(key) == entry &&
+            ISOPT.get_component_type(key) == typeof(technology) &&
+            (isnothing(meta) || key.meta == meta)
+    end
+    matching = filter(candidates) do key
+        "name" in names(tables[key]) || throw(
+            ArgumentError(
+                "$(ISOPT.encode_key_as_string(key)) has no technology-name column.",
+            ),
+        )
+        name in tables[key].name
+    end
+    isempty(matching) && throw(
+        NoResultError(
+            "No $entry result is stored for technology $name with meta=$(repr(meta)).",
+        ),
+    )
+    length(matching) == 1 || throw(
+        ArgumentError(
+            "Multiple formulations store $entry for $name. " *
+            "Select one with meta. Available values are $(repr(sort([key.meta for key in matching]))).",
+        ),
+    )
+    return only(matching)
+end
+
+function _validate_result_axis(table, key, indices)
+    Set(names(table)) == Set(["time_index", "name", "value"]) ||
+        throw(
+            ArgumentError(
+                "$(ISOPT.encode_key_as_string(key)) must have " *
+                "time_index, name and value columns for investment analytics.",
+            ),
+        )
+    for component in DataFrames.groupby(table, :name)
+        sort(component.time_index) == indices || throw(
+            ArgumentError(
+                "$(ISOPT.encode_key_as_string(key)) does not have exactly one value " *
+                "per time index for $(first(component.name)). " *
+                "Incomplete or differently indexed data cannot be read through this view.",
+            ),
+        )
+    end
+    return
+end
+
+function read_component_result(results::InvestmentOperationalResults,
+    entry::Type{<:EntryType}, technology::PSIP.Technology;
+    start_time::Union{Nothing, DateTime} = nothing,
+    len::Union{Int, Nothing} = nothing,
+    meta::Union{Nothing, AbstractString} = nothing,
+)
+    !isnothing(len) && len < 1 && throw(ArgumentError("len must be positive."))
+    variables = PSIN.get_variable_values(results.results)
+    key = _technology_key(results, variables,
+        _operational_entry(entry, technology), technology, meta)
+    # Check the complete axis before slicing, including when len matches a period count.
+    _validate_result_axis(variables[key], key,
+        eachindex(PSIN.get_timestamps(results.results)))
+    table = PSIN.read_variable(results.results, key;
+        start_time = start_time, len = len, table_format = IS.TableFormat.WIDE)
+    return table[!, [DATETIME_COL, PSIP.get_name(technology)]]
+end
+
+struct InvestmentCapacityResults <: AbstractInvestmentResults
+    results::ISOPT.OptimizationProblemResults
+    portfolio::PSIP.Portfolio
+    periods::Vector{Tuple{Dates.Date, Dates.Date}}
+end
+
+"""
+    investment_results(results::InfrastructureSystems.Results; periods)
+
+Create a planning-period view for capacity metrics from PSIN results with their original portfolio attached.
+Supply `periods` as ordered, nonoverlapping `(start_date, end_date)` tuples of `Dates.Date` values from the model inputs.
+PSIN results do not retain this investment-period mapping.
+
+Computed tables use period start dates in the `DateTime` column.
+The capacity-additions metric converts builds to MW using PSIN's investment unit sizes and installed capacity comes from its cumulative-capacity expressions.
+Direct `read_component_result` calls retain stored values, including unit counts for integer builds.
+The view supports continuous and integer supply and storage-power investment.
+
+See also [`operational_results`](@ref) and [`get_investment_periods`](@ref).
+"""
+investment_results(results::IS.Results;
+    periods::AbstractVector{<:Tuple{Dates.Date, Dates.Date}}) =
+    _investment_results(results, IS.get_source_data(results), periods)
+
+_investment_results(results::IS.Results, source, periods) = throw(
+    ArgumentError(
+        "Investment results require PSIN optimization results " *
+        "with the original portfolio attached.",
+    ),
+)
+
+function _investment_results(results::ISOPT.OptimizationProblemResults,
+    portfolio::PSIP.Portfolio, periods)
+    _validate_investment_source(results, portfolio)
+    isempty(periods) && throw(ArgumentError("Supply at least one investment period."))
+    all(p -> first(p) <= last(p), periods) ||
+        throw(ArgumentError("Investment periods must start on or before their end date."))
+    all(i -> first(periods[i]) > last(periods[i - 1]), 2:length(periods)) ||
+        throw(ArgumentError("Investment periods must be ordered and nonoverlapping."))
+    all(PSIN.get_timestamps(results)) do timestamp
+        any(p -> first(p) <= Dates.Date(timestamp) <= last(p), periods)
+    end || throw(
+        ArgumentError("Investment periods do not cover the PSIN operational timestamps."),
+    )
+    return InvestmentCapacityResults(results, portfolio, collect(periods))
+end
+
+"Return a copy of the ordered investment-period intervals for a capacity-results view."
+get_investment_periods(results::IS.Results) =
+    throw(ArgumentError("Investment periods require an investment_results view."))
+get_investment_periods(results::InvestmentCapacityResults) = copy(results.periods)
+ISOPT.get_timestamps(results::InvestmentCapacityResults) =
+    DateTime.(first.(results.periods))
+IS.get_timestamp(results::InvestmentCapacityResults) = ISOPT.get_timestamps(results)
+
+function _compute_meta_timed!(val, metric, results::InvestmentCapacityResults)
+    invoke(_compute_meta_timed!, Tuple{Any, Any, Any}, val, metric, results)
+    metadata!(val, "time_axis", "investment_period"; style = :note)
+    periods = filter(p -> DateTime(first(p)) in val[!, DATETIME_COL], results.periods)
+    metadata!(val, "investment_periods", periods; style = :note)
+    return
+end
+
+_investment_window(results::IS.Results; kwargs...) =
+    throw(NoResultError("Capacity metrics require an investment_results view."))
+
+function _investment_window(results::InvestmentCapacityResults;
+    start_time::Union{Nothing, DateTime} = nothing, len::Union{Nothing, Int} = nothing)
+    timestamps = ISOPT.get_timestamps(results)
+    start = isnothing(start_time) ? 1 : findfirst(==(start_time), timestamps)
+    isnothing(start) &&
+        throw(ArgumentError("start_time must be an investment-period start."))
+    count = something(len, length(timestamps) - start + 1)
+    count >= 1 || throw(ArgumentError("len must be positive."))
+    stop = start + count - 1
+    stop <= length(timestamps) || throw(
+        ArgumentError("The requested investment window exceeds the available periods."),
+    )
+    return start:stop
+end
+
+_capacity_entries(results::IS.Results, component::IS.InfrastructureSystemsComponent) =
+    throw(
+        NoResultError(
+            "Capacity reporting requires an investment_results view and a supported supply or storage technology.",
+        ),
+    )
+_capacity_entries(::InvestmentCapacityResults, ::PSIP.SupplyTechnology) =
+    (PSIN.BuildCapacity, PSIN.CumulativeCapacity)
+_capacity_entries(::InvestmentCapacityResults, ::PSIP.StorageTechnology) =
+    (PSIN.BuildPowerCapacity, PSIN.CumulativePowerCapacity)
+
+function read_component_result(results::InvestmentCapacityResults,
+    entry::Type{<:EntryType}, technology::PSIP.Technology;
+    start_time::Union{Nothing, DateTime} = nothing,
+    len::Union{Nothing, Int} = nothing, meta::Union{Nothing, AbstractString} = nothing)
+    build_entry, installed_entry = _capacity_entries(results, technology)
+    entry in (build_entry, installed_entry) || throw(
+        NoResultError(
+            "The investment view does not support $entry for $(typeof(technology)).",
+        ),
+    )
+    tables = if entry == installed_entry
+        PSIN.get_expression_values(results.results)
+    else
+        PSIN.get_variable_values(results.results)
+    end
+    key = _technology_key(results, tables, entry, technology, meta)
+    table = tables[key]
+    _validate_result_axis(table, key, eachindex(results.periods))
+    key.meta in (string(PSIN.ContinuousInvestment), string(PSIN.IntegerInvestment)) ||
+        throw(ArgumentError("Unsupported investment formulation $(key.meta)."))
+    name = PSIP.get_name(technology)
+    selected = sort(table[table.name .== name, :], :time_index)
+    (any(ismissing, selected.value) || !all(isfinite, selected.value)) &&
+        throw(ArgumentError("Capacity results for $name must contain finite values."))
+    window = _investment_window(results; start_time = start_time, len = len)
+    return DataFrame(DATETIME_COL => ISOPT.get_timestamps(results)[window],
+        name => selected.value[window])
 end

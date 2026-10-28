@@ -419,6 +419,25 @@ end
     end
 end
 
+@testset "Test ComponentTimedMetric with eval_zero" begin
+    empty_selectors = [
+        make_selector(_ -> false, ThermalStandard; groupby = :all),
+        make_selector(_ -> false, RenewableDispatch; groupby = :all),
+    ]
+    expected = compute(calc_integration, results_uc, thermal_sel)
+    for sel in empty_selectors
+        computed, _ = test_component_timed_metric(calc_integration, results_uc, sel)
+        @test get_time_vec(computed) == get_time_vec(expected)
+        @test all(iszero, get_data_vec(computed))
+        @test get_agg_meta(computed) == get_agg_meta(expected)
+    end
+
+    selectors = [empty_selectors; thermal_sel]
+    combined = compute(calc_integration, results_uc, make_selector(selectors...))
+    @test get_data_cols(combined) == get_name.(selectors)
+    @test combined[!, get_name(thermal_sel)] == get_data_vec(expected)
+end
+
 @testset "Test SystemTimedMetric" begin
     # The relevant data only exists in the ED results
     test_system_timed_metric(test_calc_system_slack_up, results_ed)

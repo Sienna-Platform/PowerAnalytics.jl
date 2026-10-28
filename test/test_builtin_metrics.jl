@@ -139,6 +139,16 @@ function test_metric(::Val{:calc_total_cost})
     @test calc_total_cost(make_selector(ThermalStandard), results_uc) isa ResultType
 end
 
+function test_metric(::Val{:calc_capacity_additions})
+    @test_throws PA.NoResultError calc_capacity_additions(
+        make_selector(ThermalStandard), results_uc)
+end
+
+function test_metric(::Val{:calc_installed_capacity})
+    @test_throws PA.NoResultError calc_installed_capacity(
+        make_selector(ThermalStandard), results_uc)
+end
+
 all_metric_names = filter(x -> getproperty(PowerAnalytics.Metrics, x) isa Metric,
     names(PowerAnalytics.Metrics))
 
