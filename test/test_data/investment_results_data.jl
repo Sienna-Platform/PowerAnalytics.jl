@@ -21,6 +21,8 @@ function make_investment_portfolio()
             financial_data = financial_data,
             region = [zones[mod1(i, 2)]],
             power_systems_type = "ThermalStandard",
+            prime_mover_type = PSY.PrimeMovers.GT,
+            fuel = [PSY.ThermalFuels.NATURAL_GAS],
             capacity_limits = (min = 0.0, max = i == 1 ? 150.0 : 300.0),
             capital_costs = PSIP.CapitalCost(LinearCurve(1000.0), 0.0),
             operation_costs = ThermalGenerationCost(;
@@ -38,6 +40,7 @@ function make_investment_portfolio()
         financial_data = financial_data,
         region = [zones[1]],
         storage_tech = PSIP.StorageTech.LIB,
+        prime_mover_type = PSY.PrimeMovers.BA,
         power_systems_type = "EnergyReservoirStorage",
         capacity_limits_discharge = (min = 0.0, max = 50.0),
         capacity_limits_energy = (min = 0.0, max = 200.0),

@@ -65,6 +65,33 @@ function get_generator_category(
 end
 
 """
+Return the category of a portfolio supply or storage technology using `mapping`.
+Thermal technologies with multiple fuels require an explicit category grouping.
+"""
+function get_generator_category(
+    technology::Union{PSIP.SupplyTechnology, PSIP.StorageTechnology},
+    mapping::Dict{NamedTuple, String},
+)
+    return get_generator_category(PSIP.get_parameter_type(technology), nothing,
+        PSIP.get_prime_mover_type(technology),
+        get(PSIP.get_ext(technology), "ext_category", nothing), mapping)
+end
+
+function get_generator_category(
+    technology::PSIP.SupplyTechnology{T},
+    mapping::Dict{NamedTuple, String},
+) where {T <: PSY.ThermalGen}
+    fuels = PSIP.get_fuel(technology)
+    length(fuels) <= 1 || throw(
+        ArgumentError("Supply an explicit category grouping for multi-fuel technologies."),
+    )
+    fuel = isempty(fuels) ? nothing : only(fuels)
+    return get_generator_category(PSIP.get_parameter_type(technology), fuel,
+        PSIP.get_prime_mover_type(technology),
+        get(PSIP.get_ext(technology), "ext_category", nothing), mapping)
+end
+
+"""
 Build a dictionary from fuel (or custom) category name to generator `(type, name)`
 pairs for `sys`, using `mapping` of `(gentype, fuel, primemover, …)` keys to category
 labels.

@@ -258,6 +258,76 @@ end
     end
 end
 
+@testset "Test investment technology categories" begin
+    test_data = investment_test_data
+    mapping = PA.get_generator_mapping()
+    gas = first(test_data.thermal)
+    wind = PSIP.SupplyTechnology{PSY.RenewableDispatch}(;
+        name = "wind",
+        id = 6,
+        available = true,
+        financial_data = PSIP.get_financial_data(gas),
+        power_systems_type = "RenewableDispatch",
+        prime_mover_type = PSY.PrimeMovers.WT,
+    )
+    @test PA.get_generator_category(gas, mapping) == "NG-CT"
+    @test PA.get_generator_category(wind, mapping) == "Wind"
+    @test PA.get_generator_category(test_data.battery, mapping) == "Storage"
+
+    multifuel = deepcopy(gas)
+    PSIP.set_fuel!(multifuel,
+        [PSY.ThermalFuels.NATURAL_GAS, PSY.ThermalFuels.DISTILLATE_FUEL_OIL])
+    @test_throws ArgumentError PA.get_generator_category(multifuel, mapping)
+end
+
+@testset "Test investment category mapping overrides" begin
+    mapping = PA.get_generator_mapping()
+    for (original, fuel, category) in (
+        (first(investment_test_data.thermal), "NATURAL_GAS", "NG-CT"),
+        (investment_test_data.battery, nothing, "Storage"),
+    )
+        technology = deepcopy(original)
+        PSIP.get_ext(technology)["ext_category"] = "custom"
+        @test PA.get_generator_category(technology, mapping) == category
+        custom_mapping = copy(mapping)
+        custom_mapping[(gentype = string(nameof(PSIP.get_parameter_type(technology))),
+            fuel = fuel, primemover = string(PSIP.get_prime_mover_type(technology)),
+            ext = "CUSTOM")] = "Custom"
+        @test PA.get_generator_category(technology, custom_mapping) == "Custom"
+    end
+end
+
+@testset "Test investment categories with missing metadata" begin
+    mapping = PA.get_generator_mapping()
+    gas = deepcopy(first(investment_test_data.thermal))
+    PSIP.set_fuel!(gas, PSY.ThermalFuels[])
+    battery = deepcopy(investment_test_data.battery)
+    PSIP.set_prime_mover_type!(battery, PSY.PrimeMovers.OT)
+    for technology in (gas, battery)
+        category =
+            @test_logs (:error, r"No mapping defined") match_mode = :any PA.get_generator_category(
+                technology, mapping,
+            )
+        @test isnothing(category)
+    end
+end
+
+@testset "Test capacity aggregation by category" begin
+    test_data = investment_test_data
+    results = investment_results(test_data.results; periods = test_data.periods)
+    mapping = PA.get_generator_mapping()
+    by_category = make_selector(PSIP.ResourceTechnology;
+        groupby = technology -> PA.get_generator_category(technology, mapping))
+    for metric in (calc_capacity_additions, calc_installed_capacity)
+        grouped = compute(metric, results, by_category)
+        @test Set(get_data_cols(grouped)) == Set(["NG-CT", "Storage"])
+        @test grouped[!, "NG-CT"] ≈ sum(
+            get_data_vec(compute(metric, results, technology))
+            for technology in test_data.thermal[1:2])
+        @test grouped.Storage ≈ get_data_vec(compute(metric, results, test_data.battery))
+    end
+end
+
 @testset "Test capacity aggregation" begin
     test_data = investment_test_data
     results = investment_results(test_data.results; periods = test_data.periods)
