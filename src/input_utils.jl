@@ -212,7 +212,19 @@ abstract type AbstractInvestmentResults <: IS.Results end
 
 struct InvestmentOperationalResults <: AbstractInvestmentResults
     results::PSIN.InvestmentProblemResults
-    portfolio::PSIP.Portfolio
+end
+
+_validate_investment_source(results, source) = throw(
+    ArgumentError(
+        "Investment results require PSIN optimization results " *
+        "with the original portfolio attached.",
+    ),
+)
+
+function _validate_investment_source(results, portfolio::PSIP.Portfolio)
+    IS.get_uuid(portfolio) == ISOPT.get_source_data_uuid(results) ||
+        throw(ArgumentError("The attached portfolio UUID does not match the results."))
+    return
 end
 
 """
@@ -233,33 +245,17 @@ The PSIN result object and portfolio are not modified.
 # See also
 [`compute`](@ref) and [`ComponentTimedMetric`](@ref).
 """
-operational_results(results::PSIN.InvestmentProblemResults) =
-    _operational_results(results, IS.get_source_data(results))
-
-_operational_results(results::PSIN.InvestmentProblemResults, source) = throw(
-    ArgumentError(
-        "Operational investment results require PSIN optimization results " *
-        "with the original portfolio attached."),
-)
-
-function _validate_investment_source(results, portfolio)
-    IS.get_uuid(portfolio) == ISOPT.get_source_data_uuid(results) ||
-        throw(ArgumentError("The attached portfolio UUID does not match the results."))
-    return
-end
-
-function _operational_results(
-    results::PSIN.InvestmentProblemResults,
-    portfolio::PSIP.Portfolio)
-    _validate_investment_source(results, portfolio)
+function operational_results(results::PSIN.InvestmentProblemResults)
+    _validate_investment_source(results, IS.get_source_data(results))
     timestamps = PSIN.get_timestamps(results)
     isempty(timestamps) && throw(ArgumentError("Operational results have no timestamps."))
     (issorted(timestamps) && allunique(timestamps)) || throw(ArgumentError(
         "Operational timestamps must be unique and increasing."))
-    return InvestmentOperationalResults(results, portfolio)
+    return InvestmentOperationalResults(results)
 end
 
-IS.get_source_data(results::AbstractInvestmentResults) = results.portfolio
+IS.get_source_data(results::AbstractInvestmentResults) =
+    IS.get_source_data(results.results)
 IS.get_base_power(results::AbstractInvestmentResults) =
     ISOPT.get_model_base_power(results.results)
 IS.get_timestamp(results::InvestmentOperationalResults) =
@@ -272,13 +268,13 @@ IS.get_components(
     ::Type{T},
     results::AbstractInvestmentResults,
 ) where {T <: PSIP.Technology} =
-    PSIP.get_available_technologies(T, results.portfolio)
+    PSIP.get_available_technologies(T, IS.get_source_data(results))
 IS.get_components(filter_func::Function, ::Type{T},
-    results::AbstractInvestmentResults) where {T <: PSIP.Technology} =
+    results::AbstractInvestmentResults) where {T <: IS.InfrastructureSystemsComponent} =
     Iterators.filter(filter_func, IS.get_components(T, results))
 IS.get_component(::Type{T}, results::AbstractInvestmentResults,
     name::AbstractString) where {T <: PSIP.Technology} =
-    PSIP.get_available_technology(T, results.portfolio, name)
+    PSIP.get_available_technology(T, IS.get_source_data(results), name)
 
 function IS.get_components(
     ::Type{T},
@@ -290,10 +286,6 @@ function IS.get_components(
             "SupplyTechnology{ThermalStandard} for investment results.",
         ),
     )
-end
-function IS.get_components(filter_func::Function, ::Type{T},
-    results::AbstractInvestmentResults) where {T <: IS.InfrastructureSystemsComponent}
-    return IS.get_components(T, results)
 end
 function IS.get_component(::Type{T}, results::AbstractInvestmentResults,
     name::AbstractString) where {T <: IS.InfrastructureSystemsComponent}
@@ -321,7 +313,7 @@ function _technology_key(results::AbstractInvestmentResults, tables, entry::Type
     technology::PSIP.Technology, meta::Union{Nothing, AbstractString};
     candidate_keys = keys(tables))
     name = PSIP.get_name(technology)
-    stored = PSIP.get_technology(typeof(technology), results.portfolio, name)
+    stored = PSIP.get_technology(typeof(technology), IS.get_source_data(results), name)
     (isnothing(stored) || IS.get_uuid(stored) != IS.get_uuid(technology)) &&
         throw(ArgumentError("Technology $name does not belong to the results portfolio."))
     candidates = filter(collect(candidate_keys)) do key
@@ -367,14 +359,12 @@ end
 
 struct InvestmentCapacityResults <: AbstractInvestmentResults
     results::PSIN.InvestmentProblemResults
-    portfolio::PSIP.Portfolio
-    periods::Vector{Tuple{Dates.Date, Dates.Date}}
 end
 
 """
 Create a results object for planning-period capacity metrics from PSIN results.
-The returned object references the existing PSIN results and portfolio and stores the investment-period mapping.
-`InvestmentProblemResults` supplies this mapping automatically.
+The returned object uses the portfolio attached to the PSIN results.
+`InvestmentProblemResults` supplies the investment-period mapping.
 
 Computed tables use period start dates in the `DateTime` column.
 Capacity addition metrics convert builds to MW for power and MWh for storage energy using PSIN's investment unit sizes.
@@ -390,20 +380,8 @@ These results support continuous and integer supply, storage-power and storage-e
 
 [`operational_results`](@ref) and [`get_investment_periods`](@ref).
 """
-investment_results(results::PSIN.InvestmentProblemResults) =
-    _investment_results(results, IS.get_source_data(results))
-
-_investment_results(results::PSIN.InvestmentProblemResults, source) = throw(
-    ArgumentError(
-        "Investment results require PSIN optimization results " *
-        "with the original portfolio attached.",
-    ),
-)
-
-function _investment_results(
-    results::PSIN.InvestmentProblemResults,
-    portfolio::PSIP.Portfolio)
-    _validate_investment_source(results, portfolio)
+function investment_results(results::PSIN.InvestmentProblemResults)
+    _validate_investment_source(results, IS.get_source_data(results))
     periods = PSIN.get_investment_time_stamps(results)
     isempty(periods) && throw(ArgumentError("Supply at least one investment period."))
     all(p -> first(p) <= last(p), periods) ||
@@ -415,7 +393,7 @@ function _investment_results(
     end || throw(
         ArgumentError("Investment periods do not cover the PSIN operational timestamps."),
     )
-    return InvestmentCapacityResults(results, portfolio, periods)
+    return InvestmentCapacityResults(results)
 end
 
 "Return a copy of the ordered investment-period intervals from investment capacity results."
@@ -423,15 +401,17 @@ get_investment_periods(results::IS.Results) =
     throw(
         ArgumentError("Investment periods require results returned by investment_results."),
     )
-get_investment_periods(results::InvestmentCapacityResults) = copy(results.periods)
+get_investment_periods(results::InvestmentCapacityResults) =
+    PSIN.get_investment_time_stamps(results.results)
 ISOPT.get_timestamps(results::InvestmentCapacityResults) =
-    DateTime.(first.(results.periods))
+    DateTime.(first.(get_investment_periods(results)))
 IS.get_timestamp(results::InvestmentCapacityResults) = ISOPT.get_timestamps(results)
 
 function _compute_meta_timed!(val, metric, results::InvestmentCapacityResults)
     invoke(_compute_meta_timed!, Tuple{Any, Any, Any}, val, metric, results)
     metadata!(val, "time_axis", "investment_period"; style = :note)
-    periods = filter(p -> DateTime(first(p)) in val[!, DATETIME_COL], results.periods)
+    periods = filter(p -> DateTime(first(p)) in val[!, DATETIME_COL],
+        get_investment_periods(results))
     metadata!(val, "investment_periods", periods; style = :note)
     return
 end
@@ -451,7 +431,7 @@ function _investment_window(results::InvestmentCapacityResults;
     stop <= length(timestamps) || throw(
         ArgumentError("The requested investment window exceeds the available periods."),
     )
-    return start:stop
+    return timestamps[start:stop]
 end
 
 _capacity_entries(results::IS.Results, component::IS.InfrastructureSystemsComponent) =
@@ -505,8 +485,8 @@ function read_component_result(results::InvestmentCapacityResults,
     key.meta in (string(PSIN.ContinuousInvestment), string(PSIN.IntegerInvestment)) ||
         throw(ArgumentError("Unsupported investment formulation $(key.meta)."))
     name = PSIP.get_name(technology)
-    selected = table[table.name .== name, :]
-    (any(ismissing, selected.value) || !all(isfinite, selected.value)) &&
+    selected_values = table[table.name .== name, :value]
+    (any(ismissing, selected_values) || !all(isfinite, selected_values)) &&
         throw(ArgumentError("Capacity results for $name must contain finite values."))
     data = PSIN.read_results_with_keys(results.results, [key];
         start_time = start_time, len = len, table_format = IS.TableFormat.WIDE)[key]

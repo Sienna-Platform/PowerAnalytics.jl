@@ -152,9 +152,9 @@ const calc_capacity_additions = ComponentTimedMetric(;
         _compute_capacity_additions(results, component,
             first(_capacity_entries(results, component)); kwargs...),
     eval_zero = (results; start_time = nothing, len = nothing, meta = nothing) -> let
-        window = _investment_window(results; start_time = start_time, len = len)
-        return DataFrame(DATETIME_COL => IS.get_timestamp(results)[window],
-            "" => zeros(length(window)))
+        timestamps = _investment_window(results; start_time = start_time, len = len)
+        return DataFrame(DATETIME_COL => timestamps,
+            "" => zeros(length(timestamps)))
     end,
 )
 

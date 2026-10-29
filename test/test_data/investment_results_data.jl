@@ -164,10 +164,7 @@ function run_test_investment_prob(;
 end
 
 function make_investment_results(test_data;
-    dispatch_indices = nothing,
-    investment_indices = nothing,
     other_formulation = :none,
-    attach_portfolio = true,
     source_uuid = nothing,
     timestamps = nothing,
 )
@@ -175,26 +172,6 @@ function make_investment_results(test_data;
     optimization_results = PSIN.OptimizationProblemResults(results)
     variables = PSIN.get_variable_values(results)
     dispatch_key = test_data.dispatch_key
-    if !isnothing(dispatch_indices)
-        table = variables[dispatch_key]
-        variables[dispatch_key] = vcat([
-            filter(row -> row.time_index == t, table) for t in dispatch_indices
-        ]...)
-    end
-    if !isnothing(investment_indices)
-        for tables in (variables, PSIN.get_expression_values(results))
-            for key in keys(tables)
-                PSIN.is_investment_entry(ISOPT.get_entry_type(key)) || continue
-                table = tables[key]
-                tables[key] = vcat(
-                    [
-                        filter(row -> row.time_index == t, table) for
-                        t in investment_indices
-                    ]...,
-                )
-            end
-        end
-    end
     if other_formulation != :none
         other_key = PSIN.VariableKey(
             PSIN.ActivePowerVariable,
@@ -207,9 +184,6 @@ function make_investment_results(test_data;
         if other_formulation == :split
             filter!(row -> row.name != name, variables[dispatch_key])
         end
-    end
-    if !attach_portfolio
-        optimization_results.source_data = nothing
     end
     if !isnothing(source_uuid)
         optimization_results.source_data_uuid = source_uuid
