@@ -211,7 +211,7 @@ end
 abstract type AbstractInvestmentResults <: IS.Results end
 
 struct InvestmentOperationalResults <: AbstractInvestmentResults
-    results::ISOPT.OptimizationProblemResults
+    results::PSIN.InvestmentProblemResults
     portfolio::PSIP.Portfolio
 end
 
@@ -228,15 +228,15 @@ Time aggregation does not apply representative-period weights.
 The PSIN result object and portfolio are not modified.
 
 # Arguments
- - `results::InfrastructureSystems.Results` is the PSIN results object with its original portfolio attached and a matching UUID.
+ - `results::PowerSystemsInvestments.InvestmentProblemResults` is the PSIN results object with its original portfolio attached and a matching UUID.
 
 # See also
 [`compute`](@ref) and [`ComponentTimedMetric`](@ref).
 """
-operational_results(results::IS.Results) =
+operational_results(results::PSIN.InvestmentProblemResults) =
     _operational_results(results, IS.get_source_data(results))
 
-_operational_results(results::IS.Results, source) = throw(
+_operational_results(results::PSIN.InvestmentProblemResults, source) = throw(
     ArgumentError(
         "Operational investment results require PSIN optimization results " *
         "with the original portfolio attached."),
@@ -248,7 +248,8 @@ function _validate_investment_source(results, portfolio)
     return
 end
 
-function _operational_results(results::ISOPT.OptimizationProblemResults,
+function _operational_results(
+    results::PSIN.InvestmentProblemResults,
     portfolio::PSIP.Portfolio)
     _validate_investment_source(results, portfolio)
     timestamps = PSIN.get_timestamps(results)
@@ -350,46 +351,22 @@ function _technology_key(results::AbstractInvestmentResults, tables, entry::Type
     return only(matching)
 end
 
-function _validate_result_axis(table, key, indices)
-    Set(names(table)) == Set(["time_index", "name", "value"]) ||
-        throw(
-            ArgumentError(
-                "$(ISOPT.encode_key_as_string(key)) must have " *
-                "time_index, name and value columns for investment analytics.",
-            ),
-        )
-    for component in DataFrames.groupby(table, :name)
-        sort(component.time_index) == indices || throw(
-            ArgumentError(
-                "$(ISOPT.encode_key_as_string(key)) does not have exactly one value " *
-                "per time index for $(first(component.name)). " *
-                "Incomplete or differently indexed data cannot be read through this results object.",
-            ),
-        )
-    end
-    return
-end
-
 function read_component_result(results::InvestmentOperationalResults,
     entry::Type{<:EntryType}, technology::PSIP.Technology;
     start_time::Union{Nothing, DateTime} = nothing,
     len::Union{Int, Nothing} = nothing,
     meta::Union{Nothing, AbstractString} = nothing,
 )
-    !isnothing(len) && len < 1 && throw(ArgumentError("len must be positive."))
     variables = PSIN.get_variable_values(results.results)
     key = _technology_key(results, variables,
         _operational_entry(entry, technology), technology, meta)
-    # Check the complete axis before slicing, including when len matches a period count.
-    _validate_result_axis(variables[key], key,
-        eachindex(PSIN.get_timestamps(results.results)))
     table = PSIN.read_variable(results.results, key;
         start_time = start_time, len = len, table_format = IS.TableFormat.WIDE)
     return table[!, [DATETIME_COL, PSIP.get_name(technology)]]
 end
 
 struct InvestmentCapacityResults <: AbstractInvestmentResults
-    results::ISOPT.OptimizationProblemResults
+    results::PSIN.InvestmentProblemResults
     portfolio::PSIP.Portfolio
     periods::Vector{Tuple{Dates.Date, Dates.Date}}
 end
@@ -397,7 +374,7 @@ end
 """
 Create a results object for planning-period capacity metrics from PSIN results.
 The returned object references the existing PSIN results and portfolio and stores the investment-period mapping.
-PSIN results do not retain this mapping.
+`InvestmentProblemResults` supplies this mapping automatically.
 
 Computed tables use period start dates in the `DateTime` column.
 Capacity addition metrics convert builds to MW for power and MWh for storage energy using PSIN's investment unit sizes.
@@ -407,27 +384,27 @@ These results support continuous and integer supply, storage-power and storage-e
 
 # Arguments
 
- - `results::InfrastructureSystems.Results` is the PSIN results object with its original portfolio attached and a matching UUID.
- - `periods::AbstractVector{<:Tuple{Dates.Date, Dates.Date}}` provides the required ordered, nonoverlapping `(start_date, end_date)` tuples from the model inputs.
+ - `results::PowerSystemsInvestments.InvestmentProblemResults` is the PSIN results object with its original portfolio attached and a matching UUID.
 
 # See also
 
 [`operational_results`](@ref) and [`get_investment_periods`](@ref).
 """
-investment_results(results::IS.Results;
-    periods::AbstractVector{<:Tuple{Dates.Date, Dates.Date}}) =
-    _investment_results(results, IS.get_source_data(results), periods)
+investment_results(results::PSIN.InvestmentProblemResults) =
+    _investment_results(results, IS.get_source_data(results))
 
-_investment_results(results::IS.Results, source, periods) = throw(
+_investment_results(results::PSIN.InvestmentProblemResults, source) = throw(
     ArgumentError(
         "Investment results require PSIN optimization results " *
         "with the original portfolio attached.",
     ),
 )
 
-function _investment_results(results::ISOPT.OptimizationProblemResults,
-    portfolio::PSIP.Portfolio, periods)
+function _investment_results(
+    results::PSIN.InvestmentProblemResults,
+    portfolio::PSIP.Portfolio)
     _validate_investment_source(results, portfolio)
+    periods = PSIN.get_investment_time_stamps(results)
     isempty(periods) && throw(ArgumentError("Supply at least one investment period."))
     all(p -> first(p) <= last(p), periods) ||
         throw(ArgumentError("Investment periods must start on or before their end date."))
@@ -438,7 +415,7 @@ function _investment_results(results::ISOPT.OptimizationProblemResults,
     end || throw(
         ArgumentError("Investment periods do not cover the PSIN operational timestamps."),
     )
-    return InvestmentCapacityResults(results, portfolio, collect(periods))
+    return InvestmentCapacityResults(results, portfolio, periods)
 end
 
 "Return a copy of the ordered investment-period intervals from investment capacity results."
@@ -525,14 +502,13 @@ function read_component_result(results::InvestmentCapacityResults,
     tables = ISOPT.get_result_values(results.results, key)
     _technology_key(results, tables, entry, technology, key.meta; candidate_keys = (key,))
     table = tables[key]
-    _validate_result_axis(table, key, eachindex(results.periods))
     key.meta in (string(PSIN.ContinuousInvestment), string(PSIN.IntegerInvestment)) ||
         throw(ArgumentError("Unsupported investment formulation $(key.meta)."))
     name = PSIP.get_name(technology)
-    selected = sort(table[table.name .== name, :], :time_index)
+    selected = table[table.name .== name, :]
     (any(ismissing, selected.value) || !all(isfinite, selected.value)) &&
         throw(ArgumentError("Capacity results for $name must contain finite values."))
-    window = _investment_window(results; start_time = start_time, len = len)
-    return DataFrame(DATETIME_COL => ISOPT.get_timestamps(results)[window],
-        name => selected.value[window])
+    data = PSIN.read_results_with_keys(results.results, [key];
+        start_time = start_time, len = len, table_format = IS.TableFormat.WIDE)[key]
+    return data[!, [DATETIME_COL, name]]
 end

@@ -59,7 +59,7 @@ function make_investment_portfolio()
         ),
     )
     line = PSIP.AggregateTransportTechnology{PSY.ACBranch}(;
-        name = "interzone",
+        name = "zone_connection",
         id = 5,
         available = true,
         financial_data = financial_data,
@@ -153,7 +153,7 @@ function run_test_investment_prob(;
     )
     PSIN.build!(model; output_dir = mktempdir())
     PSIN.solve!(model)
-    results = PSIN.OptimizationProblemResults(model)
+    results = PSIN.InvestmentProblemResults(model)
     timestamps = PSIN.get_timestamps(results)
     dispatch_key = PSIN.VariableKey(
         PSIN.ActivePowerVariable,
@@ -172,6 +172,7 @@ function make_investment_results(test_data;
     timestamps = nothing,
 )
     results = deepcopy(test_data.results)
+    optimization_results = PSIN.OptimizationProblemResults(results)
     variables = PSIN.get_variable_values(results)
     dispatch_key = test_data.dispatch_key
     if !isnothing(dispatch_indices)
@@ -208,13 +209,13 @@ function make_investment_results(test_data;
         end
     end
     if !attach_portfolio
-        results.source_data = nothing
+        optimization_results.source_data = nothing
     end
     if !isnothing(source_uuid)
-        results.source_data_uuid = source_uuid
+        optimization_results.source_data_uuid = source_uuid
     end
     if !isnothing(timestamps)
-        results.timestamps = timestamps
+        optimization_results.timestamps = timestamps
     end
     return results
 end

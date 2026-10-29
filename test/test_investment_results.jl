@@ -5,6 +5,43 @@ integer_investment_test_data = run_test_investment_prob(;
 original_investment_variables =
     deepcopy(PSIN.get_variable_values(investment_test_data.results))
 
+@testset "Test saved investment time mapping" begin
+    for test_data in (investment_test_data, integer_investment_test_data)
+        results = test_data.results
+        investment = investment_results(results)
+        operations = operational_results(results)
+        @test get_investment_periods(investment) == test_data.periods
+        saved = PSIN.InvestmentProblemResults(PSIN.get_output_dir(results))
+        @test_throws ArgumentError investment_results(saved)
+        @test_throws ArgumentError operational_results(saved)
+        PSIN.set_portfolio!(saved, PSIN.get_portfolio(results))
+        loaded_investment = investment_results(saved)
+        @test get_investment_periods(loaded_investment) == test_data.periods
+        for metric in (calc_capacity_additions, calc_installed_capacity)
+            @test compute(metric, loaded_investment, test_data.thermal[1]) ==
+                  compute(metric, investment, test_data.thermal[1])
+            @test compute(metric, loaded_investment, test_data.thermal[1];
+                start_time = DateTime(2035, 1, 1), len = 1) ==
+                  compute(metric, investment, test_data.thermal[1];
+                start_time = DateTime(2035, 1, 1), len = 1)
+        end
+        for metric in (calc_storage_energy_additions, calc_installed_storage_energy)
+            @test compute(metric, loaded_investment, test_data.battery) ==
+                  compute(metric, investment, test_data.battery)
+            @test compute(metric, loaded_investment, test_data.battery;
+                start_time = DateTime(2035, 1, 1), len = 1) ==
+                  compute(metric, investment, test_data.battery;
+                start_time = DateTime(2035, 1, 1), len = 1)
+        end
+        @test compute(
+            calc_active_power,
+            operational_results(saved),
+            test_data.thermal[1],
+        ) ==
+              compute(calc_active_power, operations, test_data.thermal[1])
+    end
+end
+
 @testset "Test ComponentTimedMetric on portfolio technologies" begin
     test_data = investment_test_data
     results = operational_results(test_data.results)
@@ -81,12 +118,17 @@ end
     test_data = investment_test_data
     results = operational_results(test_data.results)
     flow =
-        PA.make_component_metric_from_entry("InterzoneFlow", PSIN.FlowActivePowerVariable)
+        PA.make_component_metric_from_entry(
+            "ZoneConnectionFlow",
+            PSIN.FlowActivePowerVariable,
+        )
     expected_flow = PSIN.read_variable(test_data.results,
         PSIN.VariableKey(PSIN.FlowActivePowerVariable, typeof(test_data.line),
             string(PSIN.BasicDispatch)); table_format = IS.TableFormat.WIDE)
-    @test minimum(expected_flow.interzone) < 0.0 < maximum(expected_flow.interzone)
-    @test get_data_vec(compute(flow, results, test_data.line)) ≈ expected_flow.interzone
+    @test minimum(expected_flow.zone_connection) < 0.0 <
+          maximum(expected_flow.zone_connection)
+    @test get_data_vec(compute(flow, results, test_data.line)) ≈
+          expected_flow.zone_connection
     @test PSIN.get_variable_values(test_data.results) == original_investment_variables
 end
 
@@ -101,8 +143,8 @@ end
     @test get_time_vec(window) == test_data.timestamps[25:26]
     @test get_data_vec(window) ≈ expected.gas_1[25:26]
     @test_throws ArgumentError compute(calc_active_power, results, technology; len = 0)
-    @test_throws IS.InvalidValue compute(calc_active_power, results, technology; len = 49)
-    @test_throws IS.InvalidValue compute(calc_active_power, results, technology;
+    @test_throws ArgumentError compute(calc_active_power, results, technology; len = 49)
+    @test_throws ArgumentError compute(calc_active_power, results, technology;
         start_time = DateTime(2032, 1, 1))
 
     for indices in ([1, 2], [collect(1:47); 47])
@@ -181,7 +223,7 @@ end
 @testset "Test read_component_result with investment capacity results" begin
     for (test_data, formulation) in ((investment_test_data, PSIN.ContinuousInvestment),
         (integer_investment_test_data, PSIN.IntegerInvestment))
-        results = investment_results(test_data.results; periods = test_data.periods)
+        results = investment_results(test_data.results)
         for (technology, build_entry, installed_entry) in (
             (first(test_data.thermal), PSIN.BuildCapacity, PSIN.CumulativeCapacity),
             (test_data.battery, PSIN.BuildPowerCapacity, PSIN.CumulativePowerCapacity),
@@ -217,7 +259,7 @@ end
     for (test_data, formulation) in ((investment_test_data, PSIN.ContinuousInvestment),
         (integer_investment_test_data, PSIN.IntegerInvestment))
         psin_results = test_data.results
-        results = investment_results(psin_results; periods = test_data.periods)
+        results = investment_results(psin_results)
         variables = deepcopy(PSIN.get_variable_values(psin_results))
         expressions = deepcopy(PSIN.get_expression_values(psin_results))
         for technology in [first(test_data.thermal), test_data.battery]
@@ -264,7 +306,7 @@ end
     for (test_data, formulation) in ((investment_test_data, PSIN.ContinuousInvestment),
         (integer_investment_test_data, PSIN.IntegerInvestment))
         psin_results = test_data.results
-        results = investment_results(psin_results; periods = test_data.periods)
+        results = investment_results(psin_results)
         battery = test_data.battery
         variables = deepcopy(PSIN.get_variable_values(psin_results))
         expressions = deepcopy(PSIN.get_expression_values(psin_results))
@@ -365,7 +407,7 @@ end
 
 @testset "Test capacity aggregation by category" begin
     test_data = investment_test_data
-    results = investment_results(test_data.results; periods = test_data.periods)
+    results = investment_results(test_data.results)
     mapping = PA.get_generator_mapping()
     by_category = make_selector(PSIP.ResourceTechnology;
         groupby = technology -> PA.get_generator_category(technology, mapping))
@@ -381,7 +423,7 @@ end
 
 @testset "Test capacity aggregation" begin
     test_data = investment_test_data
-    results = investment_results(test_data.results; periods = test_data.periods)
+    results = investment_results(test_data.results)
     selector = make_selector(typeof(first(test_data.thermal)); groupby = :all)
     additions = compute(calc_capacity_additions, results, selector)
     installed = compute(calc_installed_capacity, results, selector)
@@ -405,7 +447,7 @@ end
 
 @testset "Test storage energy capacity aggregation" begin
     test_data = investment_test_data
-    results = investment_results(test_data.results; periods = test_data.periods)
+    results = investment_results(test_data.results)
     selector = make_selector(typeof(test_data.battery); groupby = :all)
     empty_selector = make_selector(t -> false, typeof(test_data.battery); groupby = :all)
     for (metric, aggregate) in ((calc_storage_energy_additions, sum),
@@ -423,7 +465,7 @@ end
 
 @testset "Test compute_all with investment capacity results" begin
     test_data = investment_test_data
-    results = investment_results(test_data.results; periods = test_data.periods)
+    results = investment_results(test_data.results)
     selector = make_selector(typeof(first(test_data.thermal)); groupby = :all)
     additions = compute(calc_capacity_additions, results, selector)
     installed = compute(calc_installed_capacity, results, selector)
@@ -436,7 +478,7 @@ end
 @testset "Test investment periods and capacity time windows" begin
     test_data = investment_test_data
     technology = first(test_data.thermal)
-    results = investment_results(test_data.results; periods = test_data.periods)
+    results = investment_results(test_data.results)
     copied_periods = get_investment_periods(results)
     pop!(copied_periods)
     @test get_investment_periods(results) == test_data.periods
@@ -462,17 +504,11 @@ end
     )
     @test_throws ArgumentError compute(calc_capacity_additions, results, technology;
         start_time = DateTime(2030, 1, 1, 1))
-    for periods in (Tuple{Date, Date}[], reverse(test_data.periods),
-        [test_data.periods[1], test_data.periods[1]],
-        [(Date(2030, 1, 2), Date(2030, 1, 1))],
-        [(Date(2040, 1, 1), Date(2044, 12, 31))])
-        @test_throws ArgumentError investment_results(test_data.results; periods = periods)
-    end
     for indices in ([1], [1, 1])
         invalid = make_investment_results(test_data; investment_indices = indices)
         for metric in (calc_capacity_additions, calc_installed_capacity)
             @test_throws ArgumentError compute(metric,
-                investment_results(invalid; periods = test_data.periods), technology;
+                investment_results(invalid), technology;
                 len = 1)
         end
     end
@@ -481,7 +517,7 @@ end
 @testset "Test unsupported capacity requests" begin
     test_data = investment_test_data
     technology = first(test_data.thermal)
-    results = investment_results(test_data.results; periods = test_data.periods)
+    results = investment_results(test_data.results)
     results_uc, _ = run_test_sim(TEST_RESULT_DIR, TEST_SIM_NAME)
     for (metric, component_type) in (
         (calc_capacity_additions, ThermalStandard),
@@ -492,11 +528,9 @@ end
         @test_throws PA.NoResultError metric(make_selector(component_type), results_uc)
     end
     @test_throws ArgumentError investment_results(
-        make_investment_results(test_data; attach_portfolio = false);
-        periods = test_data.periods)
+        make_investment_results(test_data; attach_portfolio = false))
     @test_throws ArgumentError investment_results(
-        make_investment_results(test_data; source_uuid = IS.get_uuid(PSIP.Portfolio()));
-        periods = test_data.periods)
+        make_investment_results(test_data; source_uuid = IS.get_uuid(PSIP.Portfolio())))
     @test_throws PA.NoResultError compute(calc_capacity_additions, results, test_data.line)
     @test_throws PA.NoResultError compute(calc_capacity_additions, results, technology;
         meta = "MissingInvestment")

@@ -4,8 +4,7 @@
 
 (results_uc, results_ed) = run_test_sim(TEST_RESULT_DIR, TEST_SIM_NAME)
 investment_test_data = run_test_investment_prob()
-results_investment = investment_results(
-    investment_test_data.results; periods = investment_test_data.periods)
+results_investment = investment_results(investment_test_data.results)
 const ResultType = AbstractDataFrame
 
 @testset "Test make_component_metric_from_entry" begin
