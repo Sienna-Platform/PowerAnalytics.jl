@@ -51,8 +51,9 @@ abstract type ComponentSelectorTimedMetric <: TimedMetric end
     ComponentTimedMetric(name::String, eval_fn::Function, component_agg_fn::Function, time_agg_fn::Function, component_meta_agg_fn::Function, time_meta_agg_fn::Function, eval_zero::Union{Nothing, Function})
     ComponentTimedMetric(; name, eval_fn, component_agg_fn, time_agg_fn, component_meta_agg_fn, time_meta_agg_fn, eval_zero)
 
-A [`ComponentSelectorTimedMetric`](@ref) implemented by evaluating a function on each `IS.InfrastructureSystemsComponent`.
-The evaluation function must support the supplied results and component types.
+A [`ComponentSelectorTimedMetric`](@ref) implemented by evaluating a function on each
+`IS.InfrastructureSystemsComponent`. The evaluation function must support the supplied
+results and component types.
 
 # Arguments
 
@@ -88,8 +89,9 @@ end
     CustomTimedMetric(name::String, eval_fn::Function, time_agg_fn::Function, time_meta_agg_fn::Function)
     CustomTimedMetric(; name, eval_fn, time_agg_fn, time_meta_agg_fn)
 
-A [`ComponentSelectorTimedMetric`](@ref) implemented by calling `eval_fn` directly on an `IS.InfrastructureSystemsComponent` or `ComponentSelector`.
-The evaluation function must support the supplied results and component or selector types.
+A [`ComponentSelectorTimedMetric`](@ref) implemented by calling `eval_fn` directly on an
+`IS.InfrastructureSystemsComponent` or `ComponentSelector`. The evaluation function must
+support the supplied results and component or selector types.
 
 # Arguments
 
@@ -153,7 +155,8 @@ end
 """
     PowerAnalytics.NoResultError(msg::AbstractString)
 
-Signifies that the metric does not have a result for the component, selector or other input on which it is being called.
+Signifies that the metric does not have a result for the component, selector or other
+input on which it is being called.
 """
 struct NoResultError <: Exception
     msg::AbstractString
@@ -194,7 +197,8 @@ function rebuild_metric(metric::T; kwargs...) where {T <: Metric}
 end
 
 """
-Canonical string representation of a metric paired with an `IS.InfrastructureSystemsComponent` or `ComponentSelector`.
+Canonical string representation of a metric paired with an
+`IS.InfrastructureSystemsComponent` or `ComponentSelector`.
 """
 metric_selector_to_string(
     m::Metric,
@@ -259,9 +263,10 @@ of the existing methods, below. Custom `Metric` subtypes must implement this fun
 function compute end  # For the unified docstring
 
 """
-Compute the given metric on a single `IS.InfrastructureSystemsComponent` within the given set of results.
-Return a `DataFrame` with a `DateTime` column and a data column labeled with the component's name.
-The metric's evaluation function must support the supplied results and component types.
+Compute the given metric on a single `IS.InfrastructureSystemsComponent` within the
+given set of results. Return a `DataFrame` with a `DateTime` column and a data column
+labeled with the component's name. The metric's evaluation function must support the
+supplied results and component types.
 
 # Arguments
  - `metric::ComponentTimedMetric`: the metric to compute
@@ -282,8 +287,9 @@ compute(
     _compute_component_timed_helper(metric, results, comp; kwargs...)
 
 """
-Evaluate a [`CustomTimedMetric`](@ref) on an `IS.InfrastructureSystemsComponent` or `ComponentSelector`.
-The evaluation function must support the supplied inputs and return a `DataFrame` with a `DateTime` column and a data column.
+Evaluate a [`CustomTimedMetric`](@ref) on an `IS.InfrastructureSystemsComponent` or
+`ComponentSelector`. The evaluation function must support the supplied inputs and return
+a `DataFrame` with a `DateTime` column and a data column.
 
 # Arguments
  - `metric::CustomTimedMetric`: the metric to compute
@@ -468,9 +474,10 @@ See the methods.
 function compute_all end  # For the unified docstring
 
 """
-Methods of [`compute_all`](@ref) for [`TimedMetric`](@ref)s.
-For each `(metric, selector, col_name)` tuple in `zip(metrics, selectors, col_names)`, call [`compute`](@ref) and collect the results in a `DataFrame` with a single `DateTime` column.
-All selectors must yield exactly one group.
+Methods of [`compute_all`](@ref) for [`TimedMetric`](@ref)s. For each `(metric,
+selector, col_name)` tuple in `zip(metrics, selectors, col_names)`, call
+[`compute`](@ref) and collect the results in a `DataFrame` with a single `DateTime`
+column. All selectors must yield exactly one group.
 
 Each metric's evaluation function and any reader it uses must support the supplied inputs.
 

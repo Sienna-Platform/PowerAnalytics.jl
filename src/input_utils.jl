@@ -228,19 +228,23 @@ function _validate_investment_source(results, portfolio::PSIP.Portfolio)
 end
 
 """
-Create a PowerAnalytics results object for time-step operational variables from PSIN results.
+Create a PowerAnalytics results object for time-step operational variables from PSIN
+results.
 
-The returned results support `calc_active_power`, `calc_active_power_in`, `calc_active_power_out` and `calc_stored_energy` with portfolio technology selectors.
-PSIN operational variable types can also be read with `read_component_result`.
-Pass `meta` to a metric call when more than one formulation stores the same technology.
+The returned results support `calc_active_power`, `calc_active_power_in`,
+`calc_active_power_out` and `calc_stored_energy` with portfolio technology selectors.
+PSIN operational variable types can also be read with `read_component_result`. Pass
+`meta` to a metric call when more than one formulation stores the same technology.
 
-These operational results do not support investment decisions, weighted period aggregates or financial totals.
-Returned power and energy remain in MW and MWh.
-Time aggregation does not apply representative-period weights.
-The PSIN result object and portfolio are not modified.
+These operational results do not support investment decisions, weighted period
+aggregates or financial totals. Returned power and energy remain in MW and MWh. Values
+for a technology spanning multiple regions are summed across its regions. Time
+aggregation does not apply representative-period weights. The PSIN result object and
+portfolio are not modified.
 
 # Arguments
- - `results::PowerSystemsInvestments.InvestmentProblemResults` is the PSIN results object with its original portfolio attached and a matching UUID.
+ - `results::PowerSystemsInvestments.InvestmentProblemResults` is the PSIN results
+   object with its original portfolio attached and a matching UUID.
 
 # See also
 [`compute`](@ref) and [`ComponentTimedMetric`](@ref).
@@ -321,13 +325,14 @@ function _technology_key(results::AbstractInvestmentResults, tables, entry::Type
             ISOPT.get_component_type(key) == typeof(technology) &&
             (isnothing(meta) || key.meta == meta)
     end
+    result_names = PSIN.get_variable_names(technology)
     matching = filter(candidates) do key
         "name" in names(tables[key]) || throw(
             ArgumentError(
                 "$(ISOPT.encode_key_as_string(key)) has no technology-name column.",
             ),
         )
-        name in tables[key].name
+        all(in(tables[key].name), result_names)
     end
     isempty(matching) && throw(
         NoResultError(
@@ -352,9 +357,14 @@ function read_component_result(results::InvestmentOperationalResults,
     variables = PSIN.get_variable_values(results.results)
     key = _technology_key(results, variables,
         _operational_entry(entry, technology), technology, meta)
+    result_names = PSIN.get_variable_names(technology)
     table = PSIN.read_variable(results.results, key;
-        start_time = start_time, len = len, table_format = IS.TableFormat.WIDE)
-    return table[!, [DATETIME_COL, PSIP.get_name(technology)]]
+        start_time = start_time, len = len, cols = result_names,
+        table_format = IS.TableFormat.WIDE)
+    name = PSIP.get_name(technology)
+    length(result_names) == 1 && return table
+    return DataFrame(DATETIME_COL => table[!, DATETIME_COL],
+        name => sum(eachcol(table[!, result_names])))
 end
 
 struct InvestmentCapacityResults <: AbstractInvestmentResults
@@ -362,19 +372,21 @@ struct InvestmentCapacityResults <: AbstractInvestmentResults
 end
 
 """
-Create a results object for planning-period capacity metrics from PSIN results.
-The returned object uses the portfolio attached to the PSIN results.
+Create a results object for planning-period capacity metrics from PSIN results. The
+returned object uses the portfolio attached to the PSIN results.
 `InvestmentProblemResults` supplies the investment-period mapping.
 
-Computed tables use period start dates in the `DateTime` column.
-Capacity addition metrics convert builds to MW for power and MWh for storage energy using PSIN's investment unit sizes.
-Installed capacity comes from PSIN's cumulative-capacity expressions.
-Direct `read_component_result` calls retain stored values, including unit counts for integer builds.
-These results support continuous and integer supply, storage-power and storage-energy investment.
+Computed tables use period start dates in the `DateTime` column. Capacity additions and
+installed capacity come from PSIN expressions in MW for power and MWh for storage
+energy. Direct `read_component_result` calls retain stored values, including unit counts
+for integer builds. These results support supply, storage-power and storage-energy
+investment. Values for a technology spanning multiple regions are summed across its
+regions.
 
 # Arguments
 
- - `results::PowerSystemsInvestments.InvestmentProblemResults` is the PSIN results object with its original portfolio attached and a matching UUID.
+ - `results::PowerSystemsInvestments.InvestmentProblemResults` is the PSIN results
+   object with its original portfolio attached and a matching UUID.
 
 # See also
 
@@ -451,44 +463,46 @@ function _capacity_entries(results::IS.Results,
     return entries
 end
 _capacity_entries(::InvestmentCapacityResults, ::PSIP.SupplyTechnology) =
-    (PSIN.BuildCapacity, PSIN.CumulativeCapacity)
+    (PSIN.CapacityAdditions, PSIN.BuildCapacity, PSIN.CumulativeCapacity)
 _capacity_entries(::InvestmentCapacityResults, ::PSIP.StorageTechnology) =
-    (PSIN.BuildPowerCapacity, PSIN.CumulativePowerCapacity)
+    (PSIN.PowerCapacityAdditions, PSIN.BuildPowerCapacity, PSIN.CumulativePowerCapacity)
 _capacity_entries(::InvestmentCapacityResults, ::PSIP.StorageTechnology,
-    ::Type{<:Union{PSIN.BuildEnergyCapacity, PSIN.CumulativeEnergyCapacity}}) =
-    (PSIN.BuildEnergyCapacity, PSIN.CumulativeEnergyCapacity)
+    ::Type{
+        <:Union{PSIN.EnergyCapacityAdditions, PSIN.BuildEnergyCapacity,
+            PSIN.CumulativeEnergyCapacity},
+    }) =
+    (PSIN.EnergyCapacityAdditions, PSIN.BuildEnergyCapacity, PSIN.CumulativeEnergyCapacity)
 
 function read_component_result(results::InvestmentCapacityResults,
-    entry::Type{<:EntryType}, technology::PSIP.Technology;
+    entry_or_key::Union{Type{<:EntryType}, ISOPT.VariableKey, ISOPT.ExpressionKey},
+    technology::PSIP.Technology;
     start_time::Union{Nothing, DateTime} = nothing,
     len::Union{Nothing, Int} = nothing, meta::Union{Nothing, AbstractString} = nothing)
-    installed_entry = last(_capacity_entries(results, technology, entry))
-    tables = if entry == installed_entry
+    entry = entry_or_key isa Type ? entry_or_key : ISOPT.get_entry_type(entry_or_key)
+    _capacity_entries(results, technology, entry)
+    tables = if entry <: ISOPT.ExpressionType
         PSIN.get_expression_values(results.results)
     else
         PSIN.get_variable_values(results.results)
     end
-    key = _technology_key(results, tables, entry, technology, meta)
-    return read_component_result(results, key, technology;
-        start_time = start_time, len = len)
-end
-
-function read_component_result(results::InvestmentCapacityResults,
-    key::Union{ISOPT.VariableKey, ISOPT.ExpressionKey}, technology::PSIP.Technology;
-    start_time::Union{Nothing, DateTime} = nothing,
-    len::Union{Nothing, Int} = nothing)
-    entry = ISOPT.get_entry_type(key)
-    _capacity_entries(results, technology, entry)
-    tables = ISOPT.get_result_values(results.results, key)
-    _technology_key(results, tables, entry, technology, key.meta; candidate_keys = (key,))
+    key = if entry_or_key isa Type
+        _technology_key(results, tables, entry, technology, meta)
+    else
+        isnothing(meta) ||
+            throw(ArgumentError("An explicit result key already specifies meta."))
+        _technology_key(results, tables, entry, technology, entry_or_key.meta;
+            candidate_keys = (entry_or_key,))
+    end
     table = tables[key]
-    key.meta in (string(PSIN.ContinuousInvestment), string(PSIN.IntegerInvestment)) ||
-        throw(ArgumentError("Unsupported investment formulation $(key.meta)."))
     name = PSIP.get_name(technology)
-    selected_values = table[table.name .== name, :value]
+    result_names = PSIN.get_variable_names(technology)
+    selected_values = table[in.(table.name, Ref(result_names)), :value]
     (any(ismissing, selected_values) || !all(isfinite, selected_values)) &&
         throw(ArgumentError("Capacity results for $name must contain finite values."))
     data = PSIN.read_results_with_keys(results.results, [key];
-        start_time = start_time, len = len, table_format = IS.TableFormat.WIDE)[key]
-    return data[!, [DATETIME_COL, name]]
+        start_time = start_time, len = len, cols = result_names,
+        table_format = IS.TableFormat.WIDE)[key]
+    length(result_names) == 1 && return data
+    return DataFrame(DATETIME_COL => data[!, DATETIME_COL],
+        name => sum(eachcol(data[!, result_names])))
 end

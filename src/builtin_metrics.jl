@@ -1,6 +1,7 @@
 """
-Create a `ComponentTimedMetric` that reads an `EntryType` through `read_component_result`.
-The reader must support the supplied results, entry and component types.
+Create a `ComponentTimedMetric` that reads an `EntryType` through
+`read_component_result`. The reader must support the supplied results, entry and
+component types.
 """
 make_component_metric_from_entry(
     name::String,
@@ -87,7 +88,6 @@ import
     ..mean,
     ..read_component_result,
     .._capacity_entries,
-    .._technology_key,
     .._investment_window,
     ..get_eval_zero,
     ..rebuild_selector,
@@ -124,33 +124,17 @@ export calc_active_power,
     calc_storage_energy_additions,
     calc_installed_storage_energy
 
-function _compute_capacity_additions(results, component, entry; meta = nothing, kwargs...)
-    variables = PSIN.get_variable_values(results.results)
-    key = _technology_key(results, variables, entry, component, meta)
-    val = read_component_result(results, key, component; kwargs...)
-    formulation = if key.meta == string(PSIN.IntegerInvestment)
-        PSIN.IntegerInvestment()
-    else
-        PSIN.ContinuousInvestment()
-    end
-    multiplier = PSIN.get_unit_size(entry(), component, formulation)
-    isfinite(multiplier) ||
-        throw(ArgumentError("Invalid investment unit size for $(IS.get_name(component))."))
-    get_data_vec(val) .*= multiplier
-    return val
-end
-
 """
 New supply capacity or storage discharge power added in each investment period in MW.
 
-Requires results returned by [`PowerAnalytics.investment_results`](@ref).
-Component and time aggregation sum capacity without annualizing period values.
+Requires results returned by [`PowerAnalytics.investment_results`](@ref). Component and
+time aggregation sum capacity without annualizing period values.
 """
 const calc_capacity_additions = ComponentTimedMetric(;
     name = "CapacityAdditions",
     eval_fn = (results, component; kwargs...) ->
-        _compute_capacity_additions(results, component,
-            first(_capacity_entries(results, component)); kwargs...),
+        read_component_result(results, first(_capacity_entries(results, component)),
+            component; kwargs...),
     eval_zero = (results; start_time = nothing, len = nothing, meta = nothing) -> let
         timestamps = _investment_window(results; start_time = start_time, len = len)
         return DataFrame(DATETIME_COL => timestamps,
@@ -161,8 +145,8 @@ const calc_capacity_additions = ComponentTimedMetric(;
 """
 Total installed supply capacity or storage discharge power in each investment period in MW.
 
-Requires results returned by [`PowerAnalytics.investment_results`](@ref).
-Component aggregation sums capacity and time aggregation takes the last period's capacity.
+Requires results returned by [`PowerAnalytics.investment_results`](@ref). Component
+aggregation sums capacity and time aggregation takes the last period's capacity.
 """
 const calc_installed_capacity = ComponentTimedMetric(;
     name = "InstalledCapacity",
@@ -176,23 +160,23 @@ const calc_installed_capacity = ComponentTimedMetric(;
 """
 New storage energy capacity added in each investment period in MWh.
 
-Requires results returned by [`PowerAnalytics.investment_results`](@ref).
-Component and time aggregation sum capacity without annualizing period values.
+Requires results returned by [`PowerAnalytics.investment_results`](@ref). Component and
+time aggregation sum capacity without annualizing period values.
 """
 const calc_storage_energy_additions = ComponentTimedMetric(;
     name = "StorageEnergyAdditions",
     eval_fn = (results, component; kwargs...) ->
-        _compute_capacity_additions(results, component,
-            first(_capacity_entries(results, component, PSIN.BuildEnergyCapacity));
-            kwargs...),
+        read_component_result(results,
+            first(_capacity_entries(results, component, PSIN.EnergyCapacityAdditions)),
+            component; kwargs...),
     eval_zero = get_eval_zero(calc_capacity_additions),
 )
 
 """
 Total installed storage energy capacity in each investment period in MWh.
 
-Requires results returned by [`PowerAnalytics.investment_results`](@ref).
-Component aggregation sums capacity and time aggregation takes the last period's capacity.
+Requires results returned by [`PowerAnalytics.investment_results`](@ref). Component
+aggregation sums capacity and time aggregation takes the last period's capacity.
 """
 const calc_installed_storage_energy = ComponentTimedMetric(;
     name = "InstalledStorageEnergy",

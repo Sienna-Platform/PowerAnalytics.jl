@@ -98,8 +98,13 @@ end
 function run_test_investment_prob(;
     supply_investment = PSIN.ContinuousInvestment,
     storage_investment = PSIN.ContinuousInvestment,
+    multi_region_supply = false,
 )
     portfolio, thermal, battery, line, days = make_investment_portfolio()
+    if multi_region_supply
+        PSIP.set_region!(first(thermal), collect(PSIP.get_regions(PSIP.Zone, portfolio)))
+        PSIP.set_capacity_limits!(first(thermal), (min = 0.0, max = 300.0))
+    end
     if supply_investment == PSIN.IntegerInvestment
         foreach(t -> PSIP.set_unit_size!(t, 25.0), thermal)
     end
@@ -165,6 +170,7 @@ end
 
 function make_investment_results(test_data;
     other_formulation = :none,
+    formulation_meta = nothing,
     source_uuid = nothing,
     timestamps = nothing,
 )
@@ -183,6 +189,14 @@ function make_investment_results(test_data;
         variables[other_key].value .*= 2
         if other_formulation == :split
             filter!(row -> row.name != name, variables[dispatch_key])
+        end
+    end
+    if !isnothing(formulation_meta)
+        for tables in (variables, PSIN.get_expression_values(results))
+            for key in collect(keys(tables))
+                key.meta == first(formulation_meta) || continue
+                tables[typeof(key)(last(formulation_meta))] = pop!(tables, key)
+            end
         end
     end
     if !isnothing(source_uuid)

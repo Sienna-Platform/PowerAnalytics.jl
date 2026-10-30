@@ -65,8 +65,8 @@ function get_generator_category(
 end
 
 """
-Return the category of a portfolio supply or storage technology using `mapping`.
-Thermal technologies with multiple fuels require an explicit category grouping.
+Return the category of a portfolio supply or storage technology using `mapping`. Thermal
+technologies with multiple fuels require an explicit category grouping.
 """
 function get_generator_category(
     technology::Union{PSIP.SupplyTechnology, PSIP.StorageTechnology},

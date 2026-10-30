@@ -2,6 +2,7 @@ investment_test_data = run_test_investment_prob()
 integer_investment_test_data = run_test_investment_prob(;
     supply_investment = PSIN.IntegerInvestment,
     storage_investment = PSIN.IntegerInvestment)
+multi_region_investment_test_data = run_test_investment_prob(; multi_region_supply = true)
 
 @testset "Test saved investment time mapping" begin
     test_data = investment_test_data
@@ -55,6 +56,27 @@ end
 
     @test get_data_vec(compute(calc_active_power, results, test_data.thermal[1])) ≈
           expected.gas_1
+end
+
+@testset "Test operational results for a technology in multiple regions" begin
+    test_data = multi_region_investment_test_data
+    technology = first(test_data.thermal)
+    results = operational_results(test_data.results)
+    expected = PSIN.read_variable(test_data.results, test_data.dispatch_key;
+        table_format = IS.TableFormat.WIDE)
+    result_names = PSIN.get_variable_names(technology)
+    @test all(name -> maximum(expected[!, name]) > 0.0, result_names)
+    total = sum(expected[!, name] for name in result_names)
+    generation = compute(calc_active_power, results, technology)
+    @test get_time_vec(generation) == expected.DateTime
+    @test get_data_vec(generation) ≈ total
+    selector = make_selector(typeof(technology); groupby = :all)
+    @test get_data_vec(compute(calc_active_power, results, selector)) ≈
+          total + expected.gas_2
+    window = compute(calc_active_power, results, technology;
+        start_time = DateTime(2035, 1, 1), len = 2)
+    @test get_time_vec(window) == expected.DateTime[25:26]
+    @test get_data_vec(window) ≈ total[25:26]
 end
 
 @testset "Test investment storage metrics" begin
@@ -193,6 +215,9 @@ end
             PSIN.VariableKey(PSIN.BuildCapacity, typeof(technology),
                 string(PSIN.IntegerInvestment)), PSIN.get_variable_values(test_data.results)),
         (
+            PSIN.ExpressionKey(PSIN.CapacityAdditions, typeof(technology),
+                string(PSIN.IntegerInvestment)), PSIN.get_expression_values(test_data.results)),
+        (
             PSIN.ExpressionKey(PSIN.CumulativeCapacity, typeof(technology),
                 string(PSIN.IntegerInvestment)), PSIN.get_expression_values(test_data.results)),
     )
@@ -205,6 +230,39 @@ end
         @test PA.read_component_result(results, key, technology) == expected
         @test PA.read_component_result(results, key, technology;
             start_time = DateTime(2035, 1, 1), len = 1) == expected[2:2, :]
+    end
+end
+
+@testset "Test capacity results for a technology in multiple regions" begin
+    test_data = multi_region_investment_test_data
+    technology = first(test_data.thermal)
+    results = investment_results(test_data.results)
+    result_names = PSIN.get_variable_names(technology)
+    for (key, metric) in (
+        (
+            PSIN.VariableKey(PSIN.BuildCapacity, typeof(technology),
+                string(PSIN.ContinuousInvestment)), nothing),
+        (
+            PSIN.ExpressionKey(PSIN.CapacityAdditions, typeof(technology),
+                string(PSIN.ContinuousInvestment)), calc_capacity_additions),
+        (
+            PSIN.ExpressionKey(PSIN.CumulativeCapacity, typeof(technology),
+                string(PSIN.ContinuousInvestment)), calc_installed_capacity),
+    )
+        table = PSIN.read_results_with_keys(test_data.results, [key];
+            table_format = IS.TableFormat.WIDE)[key]
+        total = sum(table[!, name] for name in result_names)
+        expected = DataFrame("DateTime" => table.DateTime,
+            PSIP.get_name(technology) => total)
+        @test PA.read_component_result(results, ISOPT.get_entry_type(key), technology) ==
+              expected
+        @test PA.read_component_result(results, key, technology) == expected
+        @test PA.read_component_result(results, key, technology;
+            start_time = DateTime(2035, 1, 1), len = 1) == expected[2:2, :]
+        if !isnothing(metric)
+            selector = make_selector(typeof(technology); groupby = :all)
+            @test get_data_vec(compute(metric, results, selector)) ≈ total + table.gas_2
+        end
     end
 end
 
@@ -258,6 +316,25 @@ end
         end
     end
     @test integer_builds == original_integer_builds
+end
+
+@testset "Test investment formulation metadata" begin
+    for (test_data, formulation) in ((investment_test_data, PSIN.ContinuousInvestment),
+        (integer_investment_test_data, PSIN.IntegerInvestment))
+        technology = first(test_data.thermal)
+        results = investment_results(test_data.results)
+        name = string(nameof(formulation))
+        for meta in (name, "PowerSystemsInvestments.$name")
+            renamed = investment_results(
+                make_investment_results(test_data;
+                    formulation_meta = string(formulation) => meta),
+            )
+            for metric in (calc_capacity_additions, calc_installed_capacity)
+                @test compute(metric, renamed, technology) ==
+                      compute(metric, results, technology)
+            end
+        end
+    end
 end
 
 @testset "Test storage energy capacity metrics" begin
@@ -449,6 +526,8 @@ end
         PSIN.BuildEnergyCapacity, technology)
     key = PSIN.VariableKey(PSIN.BuildCapacity, typeof(technology),
         string(PSIN.ContinuousInvestment))
+    @test_throws ArgumentError PA.read_component_result(results, key, technology;
+        meta = "OtherInvestment")
     _, other_thermal, _, _, _ = make_investment_portfolio()
     @test_throws ArgumentError PA.read_component_result(results, key, first(other_thermal))
     @test_throws PA.NoResultError PA.read_component_result(
