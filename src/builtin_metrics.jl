@@ -1,10 +1,14 @@
-"Convenience function to convert an `EntryType` to a function and make a `ComponentTimedMetric` from it"
+"""
+Create a `ComponentTimedMetric` that reads an `EntryType` through
+`read_component_result`. The reader must support the supplied results, entry and
+component types.
+"""
 make_component_metric_from_entry(
     name::String,
     key::Type{<:EntryType},
 ) =
     ComponentTimedMetric(; name = name,
-        eval_fn = (res::IS.Results, comp::Component; kwargs...) ->
+        eval_fn = (res::IS.Results, comp::IS.InfrastructureSystemsComponent; kwargs...) ->
             read_component_result(res, key, comp; kwargs...))
 
 "Convenience function to convert a `SystemEntryType` to a function and make a `SystemTimedMetric` from it"
@@ -70,6 +74,7 @@ import
     ..ResultsTimelessMetric,
     ..PSY,
     ..PSI,
+    ..PSIN,
     ..IS,
     ..SystemTimedMetric,
     ..Component,
@@ -82,6 +87,9 @@ import
     ..unweighted_sum,
     ..mean,
     ..read_component_result,
+    .._capacity_entries,
+    .._investment_window,
+    ..get_eval_zero,
     ..rebuild_selector,
     ..DataFrame,
     ..DATETIME_COL,
@@ -110,7 +118,76 @@ export calc_active_power,
     calc_is_slack_up,
     calc_sum_objective_value,
     calc_sum_solve_time,
-    calc_sum_bytes_alloc
+    calc_sum_bytes_alloc,
+    calc_capacity_additions,
+    calc_installed_capacity,
+    calc_storage_energy_additions,
+    calc_installed_storage_energy
+
+"""
+New supply capacity or storage discharge power added in each investment period in MW.
+
+Requires results returned by [`PowerAnalytics.investment_results`](@ref). Component and
+time aggregation sum capacity without annualizing period values.
+"""
+const calc_capacity_additions = ComponentTimedMetric(;
+    name = "CapacityAdditions",
+    eval_fn = (results, component; kwargs...) ->
+        read_component_result(results, first(_capacity_entries(results, component)),
+            component; kwargs...),
+    eval_zero = (results; start_time = nothing, len = nothing, meta = nothing) -> let
+        timestamps = _investment_window(results; start_time = start_time, len = len)
+        return DataFrame(DATETIME_COL => timestamps,
+            "" => zeros(length(timestamps)))
+    end,
+)
+
+"""
+Total installed supply capacity or storage discharge power in each investment period in MW.
+
+Requires results returned by [`PowerAnalytics.investment_results`](@ref). Component
+aggregation sums capacity and time aggregation takes the last period's capacity.
+"""
+const calc_installed_capacity = ComponentTimedMetric(;
+    name = "InstalledCapacity",
+    eval_fn = (results, component; kwargs...) ->
+        read_component_result(results, last(_capacity_entries(results, component)),
+            component; kwargs...),
+    time_agg_fn = last,
+    eval_zero = get_eval_zero(calc_capacity_additions),
+)
+
+"""
+New storage energy capacity added in each investment period in MWh.
+
+Requires results returned by [`PowerAnalytics.investment_results`](@ref). Component and
+time aggregation sum capacity without annualizing period values.
+"""
+const calc_storage_energy_additions = ComponentTimedMetric(;
+    name = "StorageEnergyAdditions",
+    eval_fn = (results, component; kwargs...) ->
+        read_component_result(results,
+            first(_capacity_entries(results, component, PSIN.EnergyCapacityAdditions)),
+            component; kwargs...),
+    eval_zero = get_eval_zero(calc_capacity_additions),
+)
+
+"""
+Total installed storage energy capacity in each investment period in MWh.
+
+Requires results returned by [`PowerAnalytics.investment_results`](@ref). Component
+aggregation sums capacity and time aggregation takes the last period's capacity.
+"""
+const calc_installed_storage_energy = ComponentTimedMetric(;
+    name = "InstalledStorageEnergy",
+    eval_fn = (results, component; kwargs...) ->
+        read_component_result(results,
+            last(_capacity_entries(results, component, PSIN.CumulativeEnergyCapacity)),
+            component;
+            kwargs...),
+    time_agg_fn = last,
+    eval_zero = get_eval_zero(calc_capacity_additions),
+)
 
 # NOTE ActivePowerVariable is in units of megawatts per simulation time period, so it's
 # actually energy and it makes sense to sum it up.

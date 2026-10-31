@@ -11,6 +11,8 @@ using PowerAnalytics
 using PowerAnalytics.Selectors
 using PowerAnalytics.Metrics
 using PowerSimulations
+import PowerSystemsInvestments
+import PowerSystemsInvestmentsPortfolios
 using HiGHS
 using TimeSeries
 using StorageSystemsSimulations
@@ -20,6 +22,9 @@ const PA = PowerAnalytics
 const IS = InfrastructureSystems
 const PSY = PowerSystems
 const PSI = PowerSimulations
+const PSIN = PowerSystemsInvestments
+const PSIP = PowerSystemsInvestmentsPortfolios
+const ISOPT = IS.Optimization
 const LOG_FILE = "PowerAnalytics-test.log"
 
 const BASE_DIR = dirname(dirname(pathof(PowerAnalytics)))
@@ -51,3 +56,4 @@ LOG_LEVELS = Dict(
 )
 
 include(joinpath(BASE_DIR, "test", "test_data", "results_data.jl"))
+include(joinpath(BASE_DIR, "test", "test_data", "investment_results_data.jl"))
