@@ -81,12 +81,11 @@ const EntryType = Union{
 }
 
 # TODO: put make_key in PowerSimulations and refactor existing code to use it
-"Create a PSI.OptimizationContainerKey from the given key entry type and component.
+"Create a result key from the given entry and component types.
 
 # Arguments
  - `entry::Type{<:EntryType}`: the key entry
- - `component` (`::Type{<:Union{Component, PSY.System}}` or `::Type{<:Component}` depending
-   on the key type): the component type
+ - `component`: a PowerSystems component or system type or a portfolio technology type
 "
 function make_key end
 make_key(entry::Type{<:PSI.VariableType}, component::Type{<:Union{Component, PSY.System}}) =
@@ -99,6 +98,10 @@ make_key(entry::Type{<:PSI.AuxVariableType}, component::Type{<:Component}) =
     PSI.AuxVarKey(entry, component)
 make_key(entry::Type{<:PSI.InitialConditionType}, component::Type{<:Component}) =
     PSI.ICKey(entry, component)
+make_key(entry::Type{<:ISOPT.VariableType}, technology::Type{<:PSIP.Technology}) =
+    ISOPT.VariableKey(entry, technology)
+make_key(entry::Type{<:ISOPT.ExpressionType}, technology::Type{<:PSIP.Technology}) =
+    ISOPT.ExpressionKey(entry, technology)
 
 "Sort a vector of key tuples into variables, parameters, etc. like PSI.load_results! wants"
 make_entry_kwargs(key_tuples::Vector{<:Tuple}) = [
@@ -408,7 +411,12 @@ function investment_results(results::PSIN.InvestmentProblemResults)
     return InvestmentCapacityResults(results)
 end
 
-"Return a copy of the ordered investment-period intervals from investment capacity results."
+"""
+Return a copy of the ordered investment-period intervals.
+
+# Arguments
+ - `results::InvestmentCapacityResults`: the results returned by [`investment_results`](@ref)
+"""
 get_investment_periods(results::IS.Results) =
     throw(
         ArgumentError("Investment periods require results returned by investment_results."),
@@ -473,27 +481,33 @@ _capacity_entries(::InvestmentCapacityResults, ::PSIP.StorageTechnology,
     }) =
     (PSIN.EnergyCapacityAdditions, PSIN.BuildEnergyCapacity, PSIN.CumulativeEnergyCapacity)
 
+function _technology_key(results::InvestmentCapacityResults,
+    entry::Type{<:EntryType}, technology::PSIP.Technology,
+    meta::Union{Nothing, AbstractString})
+    _capacity_entries(results, technology, entry)
+    tables = ISOPT.get_result_values(results.results, make_key(entry, typeof(technology)))
+    return _technology_key(results, tables, entry, technology, meta)
+end
+
+function _technology_key(results::InvestmentCapacityResults,
+    key::Union{ISOPT.VariableKey, ISOPT.ExpressionKey},
+    technology::PSIP.Technology, meta::Union{Nothing, AbstractString})
+    entry = ISOPT.get_entry_type(key)
+    _capacity_entries(results, technology, entry)
+    isnothing(meta) ||
+        throw(ArgumentError("An explicit result key already specifies meta."))
+    tables = ISOPT.get_result_values(results.results, key)
+    return _technology_key(results, tables, entry, technology, key.meta;
+        candidate_keys = (key,))
+end
+
 function read_component_result(results::InvestmentCapacityResults,
     entry_or_key::Union{Type{<:EntryType}, ISOPT.VariableKey, ISOPT.ExpressionKey},
     technology::PSIP.Technology;
     start_time::Union{Nothing, DateTime} = nothing,
     len::Union{Nothing, Int} = nothing, meta::Union{Nothing, AbstractString} = nothing)
-    entry = entry_or_key isa Type ? entry_or_key : ISOPT.get_entry_type(entry_or_key)
-    _capacity_entries(results, technology, entry)
-    tables = if entry <: ISOPT.ExpressionType
-        PSIN.get_expression_values(results.results)
-    else
-        PSIN.get_variable_values(results.results)
-    end
-    key = if entry_or_key isa Type
-        _technology_key(results, tables, entry, technology, meta)
-    else
-        isnothing(meta) ||
-            throw(ArgumentError("An explicit result key already specifies meta."))
-        _technology_key(results, tables, entry, technology, entry_or_key.meta;
-            candidate_keys = (entry_or_key,))
-    end
-    table = tables[key]
+    key = _technology_key(results, entry_or_key, technology, meta)
+    table = ISOPT.get_result_values(results.results, key)[key]
     name = PSIP.get_name(technology)
     result_names = PSIN.get_variable_names(technology)
     selected_values = table[in.(table.name, Ref(result_names)), :value]

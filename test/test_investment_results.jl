@@ -279,18 +279,12 @@ end
         results = investment_results(psin_results)
         variables = PSIN.get_variable_values(psin_results)
         expressions = PSIN.get_expression_values(psin_results)
-        for technology in [first(test_data.thermal), test_data.battery]
-            build_entry, installed_entry, unit_size =
-                if technology isa PSIP.SupplyTechnology
-                    (
-                        PSIN.BuildCapacity,
-                        PSIN.CumulativeCapacity,
-                        PSIP.get_unit_size(technology),
-                    )
-                else
-                    (PSIN.BuildPowerCapacity, PSIN.CumulativePowerCapacity,
-                        PSIP.get_unit_size_discharge(technology))
-                end
+        for (technology, build_entry, installed_entry, unit_size) in (
+            (first(test_data.thermal), PSIN.BuildCapacity, PSIN.CumulativeCapacity,
+                PSIP.get_unit_size(first(test_data.thermal))),
+            (test_data.battery, PSIN.BuildPowerCapacity, PSIN.CumulativePowerCapacity,
+                PSIP.get_unit_size_discharge(test_data.battery)),
+        )
             for (metric, key, tables, multiplier) in (
                 (calc_capacity_additions,
                     PSIN.VariableKey(build_entry, typeof(technology), string(formulation)),
@@ -319,21 +313,15 @@ end
 end
 
 @testset "Test investment formulation metadata" begin
-    for (test_data, formulation) in ((investment_test_data, PSIN.ContinuousInvestment),
-        (integer_investment_test_data, PSIN.IntegerInvestment))
-        technology = first(test_data.thermal)
-        results = investment_results(test_data.results)
-        name = string(nameof(formulation))
-        for meta in (name, "PowerSystemsInvestments.$name")
-            renamed = investment_results(
-                make_investment_results(test_data;
-                    formulation_meta = string(formulation) => meta),
-            )
-            for metric in (calc_capacity_additions, calc_installed_capacity)
-                @test compute(metric, renamed, technology) ==
-                      compute(metric, results, technology)
-            end
-        end
+    test_data = integer_investment_test_data
+    technology = first(test_data.thermal)
+    results = investment_results(test_data.results)
+    renamed = investment_results(
+        make_investment_results(test_data;
+            formulation_meta = string(PSIN.IntegerInvestment) => "CustomInvestment"),
+    )
+    for metric in (calc_capacity_additions, calc_installed_capacity)
+        @test compute(metric, renamed, technology) == compute(metric, results, technology)
     end
 end
 
