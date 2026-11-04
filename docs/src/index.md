@@ -46,7 +46,7 @@ results from operations simulations.
   - **Tutorials** — walk-throughs to help you *learn* PowerAnalytics workflows
   - **How to...** — task guides for particular analysis steps
   - **Explanation** — background to help you *understand* results processing concepts
-  - **Reference** — [public API](reference/public.md) for quick look-up
+  - **Reference** — public API and developer notes for quick look-up
 
 `PowerAnalytics.jl` follows the [Diátaxis](https://diataxis.fr/) documentation framework.
 
