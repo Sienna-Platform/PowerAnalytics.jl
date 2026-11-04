@@ -44,6 +44,7 @@ import InfrastructureSystems
 import InfrastructureSystems: get_groups, get_component, get_components
 import InfrastructureOptimizationModels
 import InteractiveUtils
+import PowerOutputSchemas
 
 # ALIASES
 const PSY = PowerSystems
