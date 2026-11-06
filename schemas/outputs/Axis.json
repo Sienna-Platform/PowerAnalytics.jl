@@ -16,7 +16,8 @@
           "const": "time"
         },
         "initial_timestamp": {
-          "$ref": "common.json#/$defs/Timestamp"
+          "$ref": "common.json#/$defs/Timestamp",
+          "description": "Naive local datetime with no zone or offset."
         },
         "resolution": {
           "$ref": "common.json#/$defs/Duration"
@@ -26,7 +27,8 @@
           "minimum": 1
         },
         "group": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^/[^/]+/axes/[^/]+$"
         }
       }
     },
@@ -45,7 +47,8 @@
           "const": "execution"
         },
         "initial_timestamp": {
-          "$ref": "common.json#/$defs/Timestamp"
+          "$ref": "common.json#/$defs/Timestamp",
+          "description": "Naive local datetime with no zone or offset."
         },
         "interval": {
           "$ref": "common.json#/$defs/Duration"
@@ -55,7 +58,8 @@
           "minimum": 1
         },
         "group": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^/[^/]+/axes/[^/]+$"
         }
       }
     },
@@ -118,7 +122,8 @@
           "minimum": 0
         },
         "group": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^/[^/]+/axes/[^/]+$"
         },
         "subset": {
           "type": "string"

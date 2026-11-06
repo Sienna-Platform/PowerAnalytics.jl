@@ -50,7 +50,8 @@
         {
           "type": "boolean"
         }
-      ]
+      ],
+      "description": "Must match dtype: f64 and f32 take a number or \"NaN\"; i64 and i32 take an integer; bool takes a boolean."
     },
     "quantity_kind": {
       "$ref": "common.json#/$defs/QuantityKind"
@@ -108,9 +109,8 @@
         "properties": {
           "dtype": {
             "enum": [
-              "i64",
-              "i32",
-              "bool"
+              "f64",
+              "f32"
             ]
           }
         },
@@ -121,9 +121,55 @@
       "then": {
         "properties": {
           "fill_value": {
-            "not": {
-              "const": "NaN"
-            }
+            "anyOf": [
+              {
+                "const": "NaN"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "dtype": {
+            "enum": [
+              "i64",
+              "i32"
+            ]
+          }
+        },
+        "required": [
+          "dtype"
+        ]
+      },
+      "then": {
+        "properties": {
+          "fill_value": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "dtype": {
+            "const": "bool"
+          }
+        },
+        "required": [
+          "dtype"
+        ]
+      },
+      "then": {
+        "properties": {
+          "fill_value": {
+            "type": "boolean"
           }
         }
       }

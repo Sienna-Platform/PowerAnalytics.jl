@@ -49,6 +49,18 @@ end
 collect_refs(node::AbstractVector) = reduce(vcat, collect_refs.(node); init = String[])
 collect_refs(::Any) = String[]
 
+function has_step(node::AbstractDict, segment::AbstractString)
+    return haskey(node, segment)
+end
+function has_step(node::AbstractVector, segment::AbstractString)
+    index = tryparse(Int, segment)
+    return !isnothing(index) && 0 <= index < length(node)
+end
+has_step(::Any, ::AbstractString) = false
+
+step(node::AbstractDict, segment::AbstractString) = node[segment]
+step(node::AbstractVector, segment::AbstractString) = node[parse(Int, segment) + 1]
+
 function ref_resolves(current_file::AbstractString, ref::AbstractString)
     file, pointer = split(ref * "#", "#"; limit = 2)
     pointer = chopsuffix(pointer, "#")
@@ -59,8 +71,8 @@ function ref_resolves(current_file::AbstractString, ref::AbstractString)
     haskey(SCHEMA_DOCS, target) || return false
     node = SCHEMA_DOCS[target]
     for segment in filter(!isempty, split(pointer, "/"))
-        haskey(node, segment) || return false
-        node = node[segment]
+        has_step(node, segment) || return false
+        node = step(node, segment)
     end
     return true
 end
@@ -91,7 +103,15 @@ end
         "container", "entry_type", "meta", "axes", "dtype", "fill_value",
         "quantity_kind", "unit_system", "units", "layout", "path",
     ]
-    @test length(ds["allOf"]) == 3
+    @test length(ds["allOf"]) == 5
+end
+
+@testset "ref_resolves walks into arrays" begin
+    @test ref_resolves("Dataset.json", "#/allOf/0/if")
+    @test ref_resolves("Dataset.json", "#/allOf/0/then/required/0")
+    @test !ref_resolves("Dataset.json", "#/allOf/99")
+    @test !ref_resolves("Dataset.json", "#/allOf/x")
+    @test !ref_resolves("Dataset.json", "#/required/0/deeper")
 end
 
 @testset "quantities.json rows are well formed" begin
@@ -116,7 +136,7 @@ const FIXTURES = joinpath(@__DIR__, "fixtures", "outputs")
     valid = readdir(joinpath(FIXTURES, "valid"))
     @test Set(valid) == Set(["single", "simulation", "power_flow", "security_analysis"])
     invalid = readdir(joinpath(FIXTURES, "invalid"))
-    @test length(invalid) == 12
+    @test length(invalid) == 19
     for d in valid
         @test JSON.parsefile(joinpath(FIXTURES, "valid", d, "outputs.json"))["kind"] == d
     end
@@ -130,4 +150,28 @@ end
         raw,
     )
     @test length(doc.models.additional_properties) == 3
+end
+
+const IS_SCHEMA_COPY = joinpath(
+    dirname(dirname(@__DIR__)),
+    "InfrastructureSystems.jl",
+    "test",
+    "data",
+    "outputs",
+    "schema",
+)
+
+@testset "InfrastructureSystems vendored schemas match schemas/outputs" begin
+    if !isdir(IS_SCHEMA_COPY)
+        error("InfrastructureSystems schema copy not found at $IS_SCHEMA_COPY")
+    end
+    differing = String[]
+    for f in readdir(SCHEMAS_DIR)
+        copy = joinpath(IS_SCHEMA_COPY, f)
+        if !isfile(copy) || read(copy) != read(joinpath(SCHEMAS_DIR, f))
+            push!(differing, f)
+        end
+    end
+    @test isempty(differing)
+    isempty(differing) || @info "Stale files in the InfrastructureSystems copy" differing
 end
