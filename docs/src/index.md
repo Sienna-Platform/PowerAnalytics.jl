@@ -24,10 +24,10 @@ The latest stable release of PowerAnalytics can be installed using the Julia pac
 
 ## About Sienna
 
-`PowerAnalytics.jl` is part of the National Laboratory of the Rockies'
+`PowerAnalytics.jl` is part of the National Laboratory of the Rockies (formerly known as NREL)'s
 [Sienna ecosystem](https://sienna-platform.github.io/Sienna/), an open source framework for
 power system modeling, simulation, and optimization. The Sienna ecosystem can be
-[found on GitHub](https://github.com/Sienna-Platform/Sienna). It contains three applications:
+[found on GitHub](https://github.com/Sienna-Platform). It contains four applications:
 
   - [Sienna\Data](https://sienna-platform.github.io/Sienna/pages/applications/sienna_data.html) enables
     efficient data input, analysis, and transformation
@@ -36,6 +36,26 @@ power system modeling, simulation, and optimization. The Sienna ecosystem can be
   - [Sienna\Dyn](https://sienna-platform.github.io/Sienna/pages/applications/sienna_dyn.html) enables
     system transient analysis including small signal stability and full system dynamic
     simulations
+  - [Sienna\Net](https://sienna-platform.github.io/Sienna/pages/applications/sienna_network.html)
+    enables power flow analysis, reactive power planning, and transmission network reductions for
+    scalable analysis.
 
 Each application uses multiple packages written in the [`Julia`](http://www.julialang.org)
-programming language.
+programming language. `PowerAnalytics.jl` supports Sienna\Ops by analyzing and aggregating
+results from operations simulations.
+
+## How to use this documentation
+
+  - **Tutorials** — walk-throughs to help you *learn* PowerAnalytics workflows
+  - **How to...** — task guides for particular analysis steps
+  - **Explanation** — background to help you *understand* results processing concepts
+  - **Reference** — public API and developer notes for quick look-up
+
+`PowerAnalytics.jl` follows the [Diátaxis](https://diataxis.fr/) documentation framework.
+
+## Installation and Quick Links
+
+  - [Sienna installation page](https://sienna-platform.github.io/Sienna/SiennaDocs/docs/build/how-to/install/):
+    Instructions to install `PowerAnalytics.jl` and other Sienna packages
+  - [Central Sienna documentation](https://sienna-platform.github.io/Sienna/SiennaDocs/docs/build/index.html):
+    Cross-linked documentation website for the core user-facing Sienna packages

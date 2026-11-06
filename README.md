@@ -1,10 +1,15 @@
 # PowerAnalytics.jl
 
-[![main - CI](https://github.com/Sienna-Platform/PowerAnalytics.jl/actions/workflows/main-tests.yml/badge.svg)](https://github.com/Sienna-Platform/PowerAnalytics.jl/actions/workflows/main-tests.yml)
-[![codecov](https://codecov.io/gh/Sienna-Platform/PowerAnalytics.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/Sienna-Platform/PowerAnalytics.jl)
-[![Documentation Build](https://github.com/Sienna-Platform/PowerAnalytics.jl/workflows/Documentation/badge.svg?)](https://sienna-platform.github.io/PowerAnalytics.jl/stable)
-[<img src="https://img.shields.io/badge/slack-@Sienna/PG-sienna.svg?logo=slack">](https://join.slack.com/t/core-sienna/shared_invite/zt-glam9vdu-o8A9TwZTZqqNTKHa7q3BpQ)
-[![PowerAnalytics Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/PowerAnalytics)](https://pkgs.genieframework.com?packages=PowerAnalytics)
+| **Documentation** | **Build Status** |
+|:---:|:---:|
+| [![][docs-sienna-img]][docs-sienna-url] [![][docs-stable-img]][docs-stable-url] [![][docs-dev-img]][docs-dev-url] | [![main - CI](https://github.com/Sienna-Platform/PowerAnalytics.jl/actions/workflows/main-tests.yml/badge.svg)](https://github.com/Sienna-Platform/PowerAnalytics.jl/actions/workflows/main-tests.yml) [![codecov](https://codecov.io/gh/Sienna-Platform/PowerAnalytics.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/Sienna-Platform/PowerAnalytics.jl) [<img src="https://img.shields.io/badge/slack-@Sienna/PG-sienna.svg?logo=slack">](https://join.slack.com/t/core-sienna/shared_invite/zt-glam9vdu-o8A9TwZTZqqNTKHa7q3BpQ) [![PowerAnalytics Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/PowerAnalytics)](https://pkgs.genieframework.com?packages=PowerAnalytics) |
+
+[docs-sienna-img]: https://img.shields.io/badge/Central_Sienna_docs-blue.svg
+[docs-sienna-url]: https://sienna-platform.github.io/Sienna/SiennaDocs/docs/build/index/
+[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
+[docs-stable-url]: https://sienna-platform.github.io/PowerAnalytics.jl/stable/
+[docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
+[docs-dev-url]: https://sienna-platform.github.io/PowerAnalytics.jl/dev/
 
 PowerAnalytics.jl is a Julia package that contains analytic routines for power system simulation results in the Sienna ecosystem, specifically from [PowerSimulations.jl](https://github.com/Sienna-Platform/PowerSimulations.jl).
 
