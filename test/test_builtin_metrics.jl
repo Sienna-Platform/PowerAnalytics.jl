@@ -3,6 +3,8 @@
 # would be great if we did.
 
 (results_uc, results_ed) = run_test_sim(TEST_RESULT_DIR, TEST_SIM_NAME)
+investment_test_data = run_test_investment_prob()
+results_investment = investment_results(investment_test_data.results)
 const ResultType = AbstractDataFrame
 
 @testset "Test make_component_metric_from_entry" begin
@@ -137,6 +139,28 @@ end
 
 function test_metric(::Val{:calc_total_cost})
     @test calc_total_cost(make_selector(ThermalStandard), results_uc) isa ResultType
+end
+
+function test_metric(::Val{:calc_capacity_additions})
+    @test calc_capacity_additions(
+        make_selector(PSIP.SupplyTechnology{ThermalStandard}), results_investment) isa ResultType
+end
+
+function test_metric(::Val{:calc_installed_capacity})
+    @test calc_installed_capacity(
+        make_selector(PSIP.SupplyTechnology{ThermalStandard}), results_investment) isa ResultType
+end
+
+function test_metric(::Val{:calc_storage_energy_additions})
+    @test calc_storage_energy_additions(
+        make_selector(PSIP.StorageTechnology{EnergyReservoirStorage}), results_investment,
+    ) isa ResultType
+end
+
+function test_metric(::Val{:calc_installed_storage_energy})
+    @test calc_installed_storage_energy(
+        make_selector(PSIP.StorageTechnology{EnergyReservoirStorage}), results_investment,
+    ) isa ResultType
 end
 
 all_metric_names = filter(x -> getproperty(PowerAnalytics.Metrics, x) isa Metric,

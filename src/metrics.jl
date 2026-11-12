@@ -52,17 +52,17 @@ abstract type ComponentSelectorTimedMetric <: TimedMetric end
     ComponentTimedMetric(; name, eval_fn, component_agg_fn, time_agg_fn, component_meta_agg_fn, time_meta_agg_fn, eval_zero)
 
 A [`ComponentSelectorTimedMetric`](@ref) implemented by evaluating a function on each
-[`Component`](@extref PowerSystems.Component).
+`IS.InfrastructureSystemsComponent`. The evaluation function must support the supplied
+results and component types.
 
 # Arguments
 
   - `name::String`: the name of the `Metric`
-  - `eval_fn`: a function with signature `(::IS.Results, ::Component;
+  - `eval_fn`: a function with signature `(::IS.Results, ::IS.InfrastructureSystemsComponent;
     start_time::Union{Nothing, DateTime}, len::Union{Int, Nothing})` that returns a
-    `DataFrame` representing the results for that `Component`
-  - `component_agg_fn`: optional, a function to aggregate results between
-    [`Component`](@extref PowerSystems.Component)s/`ComponentSelector`s, defaults to
-    [`sum`](@extref Base.sum)
+    `DataFrame` representing the results for that component
+  - `component_agg_fn`: optional, a function to aggregate results between components or
+    `ComponentSelector`s, defaults to [`sum`](@extref Base.sum)
   - `time_agg_fn`: optional, a function to aggregate results across time, defaults to
     [`sum`](@extref Base.sum)
   - `component_meta_agg_fn`: optional, a function to aggregate metadata across components,
@@ -89,16 +89,16 @@ end
     CustomTimedMetric(name::String, eval_fn::Function, time_agg_fn::Function, time_meta_agg_fn::Function)
     CustomTimedMetric(; name, eval_fn, time_agg_fn, time_meta_agg_fn)
 
-A [`ComponentSelectorTimedMetric`](@ref) implemented without drilling down to the base
-[`Component`](@extref PowerSystems.Component)s, just calls the `eval_fn` directly on the
-`ComponentSelector`.
+A [`ComponentSelectorTimedMetric`](@ref) implemented by calling `eval_fn` directly on an
+`IS.InfrastructureSystemsComponent` or `ComponentSelector`. The evaluation function must
+support the supplied results and component or selector types.
 
 # Arguments
 
   - `name::String`: the name of the `Metric`
   - `eval_fn`: a function with signature `(::IS.Results, ::Union{ComponentSelector,
-    Component}; start_time::Union{Nothing, DateTime}, len::Union{Int, Nothing})` that
-    returns a `DataFrame` representing the results for that `Component`
+    IS.InfrastructureSystemsComponent}; start_time::Union{Nothing, DateTime}, len::Union{Int, Nothing})`
+    that returns a `DataFrame` representing the results for that component or selector
   - `time_agg_fn`: optional, a function to aggregate results across time, defaults to
     [`sum`](@extref Base.sum)
   - `time_meta_agg_fn`: optional, a function to aggregate metadata across time, defaults to
@@ -155,8 +155,8 @@ end
 """
     PowerAnalytics.NoResultError(msg::AbstractString)
 
-Signifies that the metric does not have a result for the [`Component`](@extref
-PowerSystems.Component)/`ComponentSelector`/etc. on which it is being called.
+Signifies that the metric does not have a result for the component, selector or other
+input on which it is being called.
 """
 struct NoResultError <: Exception
     msg::AbstractString
@@ -197,10 +197,13 @@ function rebuild_metric(metric::T; kwargs...) where {T <: Metric}
 end
 
 """
-Canonical way to represent a `(Metric, ComponentSelector)` or `(Metric, Component)` pair as
-a string.
+Canonical string representation of a metric paired with an
+`IS.InfrastructureSystemsComponent` or `ComponentSelector`.
 """
-metric_selector_to_string(m::Metric, e::Union{ComponentSelector, Component}) =
+metric_selector_to_string(
+    m::Metric,
+    e::Union{ComponentSelector, IS.InfrastructureSystemsComponent},
+) =
     get_name(m) * COMPONENT_NAME_DELIMITER * get_name(e)
 
 # COMPUTE() AND HELPERS
@@ -230,7 +233,7 @@ end
 # Helper function to call eval_fn and set the appropriate metadata
 function _compute_component_timed_helper(metric::ComponentSelectorTimedMetric,
     results::IS.Results,
-    comp::Union{Component, ComponentSelector};
+    comp::Union{IS.InfrastructureSystemsComponent, ComponentSelector};
     kwargs...)
     val = get_eval_fn(metric)(results, comp; kwargs...)
     _compute_meta_timed!(val, metric, results)
@@ -260,36 +263,39 @@ of the existing methods, below. Custom `Metric` subtypes must implement this fun
 function compute end  # For the unified docstring
 
 """
-Like [`compute(metric::ComponentTimedMetric, results::IS.Results,
-selector::ComponentSelector; kwargs...)`](@ref) but for [`Component`](@extref
-PowerSystems.Component)s rather than `ComponentSelector`s, used in the implementation of
-that method. Compute the given metric on the given component within the given set of
-results, returning a `DataFrame` with a `DateTime` column and a data column labeled with the
-component's name.
+Compute the given metric on a single `IS.InfrastructureSystemsComponent` within the
+given set of results. Return a `DataFrame` with a `DateTime` column and a data column
+labeled with the component's name. The metric's evaluation function must support the
+supplied results and component types.
 
 # Arguments
  - `metric::ComponentTimedMetric`: the metric to compute
  - `results::IS.Results`: the results from which to fetch data
- - `comp::Component`: the component on which to compute the metric
+ - `comp::IS.InfrastructureSystemsComponent`: the component on which to compute the metric
  - `start_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
    series should begin
  - `len::Union{Int, Nothing} = nothing`: the number of steps in the resulting time series
 
 See also: [`compute`](@ref) unified function documentation
 """
-compute(metric::ComponentTimedMetric, results::IS.Results, comp::Component; kwargs...) =
+compute(
+    metric::ComponentTimedMetric,
+    results::IS.Results,
+    comp::IS.InfrastructureSystemsComponent;
+    kwargs...,
+) =
     _compute_component_timed_helper(metric, results, comp; kwargs...)
 
 """
-[`compute`](@ref) method for [`CustomTimedMetric`](@ref). Compute the given metric on the
-given component within the given set of results, returning a `DataFrame` with a `DateTime`
-column and a data column labeled with the component's name. Exclude components marked as not
-available.
+Evaluate a [`CustomTimedMetric`](@ref) on an `IS.InfrastructureSystemsComponent` or
+`ComponentSelector`. The evaluation function must support the supplied inputs and return
+a `DataFrame` with a `DateTime` column and a data column.
 
 # Arguments
  - `metric::CustomTimedMetric`: the metric to compute
  - `results::IS.Results`: the results from which to fetch data
- - `comp::Component`: the component on which to compute the metric
+ - `comp::Union{IS.InfrastructureSystemsComponent, ComponentSelector}`: the component or
+   selector on which to compute the metric
  - `start_time::Union{Nothing, DateTime} = nothing`: the time at which the resulting time
    series should begin
  - `len::Union{Int, Nothing} = nothing`: the number of steps in the resulting time series
@@ -297,7 +303,7 @@ available.
 See also: [`compute`](@ref) unified function documentation
 """
 compute(metric::CustomTimedMetric, results::IS.Results,
-    comp::Union{Component, ComponentSelector};
+    comp::Union{IS.InfrastructureSystemsComponent, ComponentSelector};
     kwargs...) =
     _compute_component_timed_helper(metric, results, comp; kwargs...)
 
@@ -373,6 +379,10 @@ function _compute_one(metric::ComponentTimedMetric, results::IS.Results,
     if length(vals) == 0
         if !isnothing(get_eval_zero(metric))
             result = get_eval_zero(metric)(results; kwargs...)
+            result = DataFrames.rename(
+                result,
+                first(get_data_cols(result)) => get_name(selector),
+            )
         else
             time_col = Vector{Union{Missing, DateTime}}([missing])
             data_col = agg_fn(Vector{Float64}())
@@ -464,17 +474,19 @@ See the methods.
 function compute_all end  # For the unified docstring
 
 """
-Methods of [`compute_all`](@ref) for [`TimedMetric`](@ref)s. For each `(metric, selector,
-col_name)` tuple in `zip(metrics, selectors, col_names)`, call [`compute`](@ref) and collect
-the results in a `DataFrame` with a single `DateTime` column. All selectors must yield
-exactly one group.
+Methods of [`compute_all`](@ref) for [`TimedMetric`](@ref)s. For each `(metric,
+selector, col_name)` tuple in `zip(metrics, selectors, col_names)`, call
+[`compute`](@ref) and collect the results in a `DataFrame` with a single `DateTime`
+column. All selectors must yield exactly one group.
+
+Each metric's evaluation function and any reader it uses must support the supplied inputs.
 
 # Arguments
  - `results::IS.Results`: the results from which to fetch data
  - `metrics::Vector{<:TimedMetric}`: the metrics to compute
- - `selectors`: either a scalar or vector of `Nothing`/[`Component`](@extref
-   PowerSystems.Component)/`ComponentSelector`: the selectors on which to compute the
-   metrics, or nothing for system/results metrics; broadcast if scalar
+ - `selectors`: a component of type `IS.InfrastructureSystemsComponent`, a
+   `ComponentSelector`, `nothing` for system/results metrics or a vector of these inputs
+   to compute the metrics on, broadcast if scalar
  - `col_names::Union{Nothing, Vector{<:Union{Nothing, AbstractString}}} = nothing`: a vector
    of names for the columns of output data. Entries of `nothing` default to the result of
    [`metric_selector_to_string`](@ref); `names = nothing` is equivalent to an entire vector
@@ -500,7 +512,7 @@ See also: [`compute_all` tuple-based interface](@ref compute_all(
 """
 compute_all(results::IS.Results,
     metrics::Vector{<:TimedMetric},
-    selectors::Union{Nothing, Component, ComponentSelector, Vector} = nothing,
+    selectors::Union{Nothing, IS.InfrastructureSystemsComponent, ComponentSelector, Vector} = nothing,
     col_names::Union{Nothing, Vector{<:Union{Nothing, AbstractString}}} = nothing;
     kwargs...,
 ) = hcat_timed_dfs(_common_compute_all(results, metrics, selectors, col_names; kwargs)...)
@@ -628,7 +640,11 @@ compose_metrics(
     reduce_fn,
     metrics::ComponentSelectorTimedMetric...,
 ) = CustomTimedMetric(; name = name,
-    eval_fn = (res::IS.Results, sel::Union{Component, ComponentSelector}; kwargs...) ->
+    eval_fn = (
+        res::IS.Results,
+        sel::Union{IS.InfrastructureSystemsComponent, ComponentSelector};
+        kwargs...,
+    ) ->
         _common_compose_metrics(
             res,
             sel,
@@ -676,7 +692,11 @@ compose_metrics(
 component_selector_metric_from_system_metric(in_metric::SystemTimedMetric) =
     CustomTimedMetric(;
         name = get_name(in_metric),
-        eval_fn = (res::IS.Results, comp::Union{Component, ComponentSelector}; kwargs...) ->
+        eval_fn = (
+            res::IS.Results,
+            comp::Union{IS.InfrastructureSystemsComponent, ComponentSelector};
+            kwargs...,
+        ) ->
             compute(in_metric, res; kwargs...))
 
 # This one only gets triggered when we have at least one ComponentSelectorTimedMetric *and*
