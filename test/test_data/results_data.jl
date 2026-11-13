@@ -245,3 +245,35 @@ function run_test_prob()
     res = OptimizationProblemResults(prob)
     return res
 end
+
+# A single problem whose thermal units use a compact unit commitment formulation, which
+# stores the `PowerOutput` auxiliary variable
+function run_test_prob_compact()
+    sys = deepcopy(PSB.build_system(PSB.PSITestSystems, "c_sys5_uc"))
+    # Compact formulations need linear cost curves
+    for gen in get_components(ThermalStandard, sys)
+        cost = get_operation_cost(gen)
+        set_operation_cost!(
+            gen,
+            ThermalGenerationCost(;
+                variable = CostCurve(LinearCurve(20.0)),
+                fixed = get_fixed(cost),
+                start_up = get_start_up(cost),
+                shut_down = get_shut_down(cost),
+            ),
+        )
+    end
+    template = ProblemTemplate(NetworkModel(CopperPlatePowerModel))
+    set_device_model!(template, ThermalStandard, ThermalCompactUnitCommitment)
+    set_device_model!(template, PowerLoad, StaticPowerLoad)
+    set_device_model!(template, RenewableDispatch, RenewableFullDispatch)
+    prob = DecisionModel(
+        template,
+        sys;
+        optimizer = optimizer_with_attributes(HiGHS.Optimizer, "mip_rel_gap" => 0.01),
+        horizon = Hour(12),
+    )
+    build!(prob; output_dir = mktempdir())
+    solve!(prob)
+    return OptimizationProblemResults(prob)
+end

@@ -152,8 +152,7 @@ end
 
     branch_data = PA.get_branch_data(ac_results)
     @test branch_data isa PA.PowerData
-    # NOTE. written to current behavior. Only one aux variable per branch type is kept,
-    # so to-from discarded.
+    # Only one aux variable per branch type is kept, and from-to takes precedence
     from_to_keys =
         filter(k -> PSI.get_entry_type(k) == PSI.PowerFlowBranchActivePowerFromTo, aux_keys)
     @test Set(keys(branch_data.data)) ==
@@ -167,4 +166,27 @@ end
         @test !isempty(mapped)
         @test all(in(branch_names), mapped)
     end
+end
+
+@testset "add_aux_variables! keeps the from-to branch flow" begin
+    df = DataFrames.DataFrame("DateTime" => [DateTime(2024)], "line" => [1.0])
+    for line_type in (Line, TapTransformer)
+        from_to = PSI.AuxVarKey(PSI.PowerFlowBranchActivePowerFromTo, line_type)
+        to_from = PSI.AuxVarKey(PSI.PowerFlowBranchActivePowerToFrom, line_type)
+        for aux_keys in ([from_to, to_from], [to_from, from_to])
+            variables = Dict{PSI.OptimizationContainerKey, DataFrames.DataFrame}()
+            aux = Dict{PSI.OptimizationContainerKey, DataFrames.DataFrame}(
+                k => copy(df) for k in aux_keys
+            )
+            PA.add_aux_variables!(variables, aux)
+            @test collect(keys(variables)) == [from_to]
+        end
+    end
+end
+
+@testset "Test get_reserve_services" begin
+    reg = get_component(VariableReserve{ReserveUp}, get_system(results_uc), "REG1")
+    @test get_reserve_services(results_uc) == [reg]
+    # The ED problem has no reserve model
+    @test isempty(get_reserve_services(results_ed))
 end
