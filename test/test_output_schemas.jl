@@ -136,7 +136,7 @@ const FIXTURES = joinpath(@__DIR__, "fixtures", "outputs")
     valid = readdir(joinpath(FIXTURES, "valid"))
     @test Set(valid) == Set(["single", "simulation", "power_flow", "security_analysis"])
     invalid = readdir(joinpath(FIXTURES, "invalid"))
-    @test length(invalid) == 19
+    @test length(invalid) == 21
     for d in valid
         @test JSON.parsefile(joinpath(FIXTURES, "valid", d, "outputs.json"))["kind"] == d
     end
