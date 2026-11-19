@@ -56,26 +56,20 @@ const IS_DATA = joinpath(
 )
 const IS_SCHEMA_COPY = joinpath(IS_DATA, "schema")
 
+same_file(copy, original) = isfile(copy) && read(copy) == read(original)
+
 @testset "InfrastructureSystems vendored schemas match schemas/outputs" begin
-    if !isdir(IS_SCHEMA_COPY)
-        error("InfrastructureSystems schema copy not found at $IS_SCHEMA_COPY")
-    end
     @test sort(readdir(IS_SCHEMA_COPY)) == sort(readdir(SCHEMAS_DIR))
-    differing = String[]
     for f in readdir(SCHEMAS_DIR)
-        copy = joinpath(IS_SCHEMA_COPY, f)
-        if !isfile(copy) || read(copy) != read(joinpath(SCHEMAS_DIR, f))
-            push!(differing, f)
-        end
+        @test same_file(joinpath(IS_SCHEMA_COPY, f), joinpath(SCHEMAS_DIR, f))
     end
-    @test isempty(differing)
-    isempty(differing) || @info "Stale files in the InfrastructureSystems copy" differing
 end
 
 @testset "InfrastructureSystems vendored fixtures match test/fixtures/outputs" begin
     for kind in readdir(joinpath(FIXTURES, "valid"))
-        copy = joinpath(IS_DATA, kind, "outputs.json")
-        @test isfile(copy) &&
-              read(copy) == read(joinpath(FIXTURES, "valid", kind, "outputs.json"))
+        @test same_file(
+            joinpath(IS_DATA, kind, "outputs.json"),
+            joinpath(FIXTURES, "valid", kind, "outputs.json"),
+        )
     end
 end

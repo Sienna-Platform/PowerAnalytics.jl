@@ -2,11 +2,10 @@ import OpenAPI
 
 const REPO = dirname(dirname(@__DIR__))
 const SCHEMAS = joinpath(REPO, "schemas", "outputs")
-const PKG_DIR = get(ENV, "OUTPUTS_SCHEMAS_OUT", joinpath(REPO, "PowerOutputSchemas.jl"))
-const MODULE_PATH = joinpath(PKG_DIR, "src", "PowerOutputSchemas.jl")
+const MODULE_PATH = joinpath(REPO, "PowerOutputSchemas.jl", "src", "PowerOutputSchemas.jl")
 
 # Generates PowerOutputSchemas.jl/src from schemas/outputs/openapi-outputs.json with
-# OpenAPI.jl, then inserts the public `decode` and `encode` wrappers before the model structs.
+# OpenAPI.jl, then inserts the public `decode` and `encode` wrappers before the module end.
 const CODEC_DEFINITIONS = """
 \"\"\"
     decode(T, value[, validate])
@@ -23,9 +22,10 @@ decode(::Type{T}, value, validate::Bool) where {T} = _decode(T, value, validate)
 Reduce a generated model to JSON-ready data.
 \"\"\"
 encode(value) = _encode(value)
-"""
 
-const CODEC_EXPORTS = ["decode", "encode", "SchemaValidationError", "DecodeError"]
+export decode, encode, SchemaValidationError, DecodeError
+
+"""
 
 function generate()
     mkpath(dirname(MODULE_PATH))
@@ -36,18 +36,9 @@ function generate()
         datetime = :zoned,
         models_only = true,
     )
-    lines = split(read(MODULE_PATH, String), '\n')
-    first_decl = findfirst(l -> startswith(l, "@doc ") || startswith(l, "struct ") || startswith(l, "Base.@kwdef struct "), lines)
-    last_end = findlast(startswith("end # module"), lines)
-    open(MODULE_PATH, "w") do io
-        println(io, join(lines[1:(first_decl - 1)], '\n'))
-        println(io, CODEC_DEFINITIONS)
-        println(io, join(lines[first_decl:(last_end - 1)], '\n'))
-        for n in CODEC_EXPORTS
-            println(io, "export $n")
-        end
-        println(io, lines[last_end])
-    end
+    src = read(MODULE_PATH, String)
+    module_end = first(findlast("end # module", src))
+    write(MODULE_PATH, src[1:(module_end - 1)] * CODEC_DEFINITIONS * src[module_end:end])
     return nothing
 end
 

@@ -129,22 +129,6 @@ const _SPEC = Runtime.Spec(;
     default_server = "",
 )
 
-"""
-    decode(T, value[, validate])
-
-Build a `T` from parsed JSON data (a scalar, `Vector`, or `AbstractDict`). `validate`
-defaults to true, which checks the value against the schema the generated package embeds.
-"""
-decode(::Type{T}, value) where {T} = _decode(T, value)
-decode(::Type{T}, value, validate::Bool) where {T} = _decode(T, value, validate)
-
-"""
-    encode(value)
-
-Reduce a generated model to JSON-ready data.
-"""
-encode(value) = _encode(value)
-
 @doc "    TimeAxis\n\nOne continuous timeline. An emulation model, a power flow, and a security analysis use it. The axis name is time.\n\n- `kind`: Axis kind. The value is \"time\".\n- `initial_timestamp`: Timestamp of the first time step. Naive local datetime with no zone or offset.\n- `resolution`: Time step between two values.\n- `length`: Number of time steps.\n- `group`: HDF5 group path that holds the axis data."
 Base.@kwdef struct TimeAxis
     kind::String
@@ -983,8 +967,22 @@ function _form_fields(_openapi_value::OutputsDocument)
     return _openapi_output
 end
 
-export decode
-export encode
-export SchemaValidationError
-export DecodeError
+"""
+    decode(T, value[, validate])
+
+Build a `T` from parsed JSON data (a scalar, `Vector`, or `AbstractDict`). `validate`
+defaults to true, which checks the value against the schema the generated package embeds.
+"""
+decode(::Type{T}, value) where {T} = _decode(T, value)
+decode(::Type{T}, value, validate::Bool) where {T} = _decode(T, value, validate)
+
+"""
+    encode(value)
+
+Reduce a generated model to JSON-ready data.
+"""
+encode(value) = _encode(value)
+
+export decode, encode, SchemaValidationError, DecodeError
+
 end # module PowerOutputSchemas

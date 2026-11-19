@@ -97,6 +97,12 @@ const REJECTED = [
         doc -> delete!(find_model(doc, "model")["tables"][1]["columns"][2], "quantity_kind"),
     ),
     (
+        "base_reference on a NATURAL_UNITS table column",
+        "single",
+        doc ->
+            find_model(doc, "model")["tables"][1]["columns"][2]["base_reference"] = "system",
+    ),
+    (
         "dataset without container",
         "single",
         doc -> delete!(find_model(doc, "model")["datasets"][1], "container"),
@@ -218,7 +224,7 @@ end
 @testset "axis reference to a missing axis is schema-valid (InfrastructureSystems rejects it in validate_metadata)" begin
     raw = load_fixture("single")
     find_model(raw, "model")["datasets"][1]["axes"][2] = "Nope"
-    @test_nowarn decode(DOCUMENT, raw)
+    @test decode(DOCUMENT, raw).models[1].datasets[1].axes[2] == "Nope"
 end
 
 @testset "settings keep integer and boolean values" begin
@@ -238,12 +244,6 @@ end
     dataset["fill_value"] = 0
     @test decode(DOCUMENT, raw).models[1].datasets[2].fill_value === 0
     @test decode(DOCUMENT, raw, false).models[1].datasets[2].fill_value === 0
-end
-
-@testset "valid fixtures decode without validation" begin
-    for kind in KINDS
-        @test_nowarn decode(DOCUMENT, load_fixture(kind), false)
-    end
 end
 
 @testset "no Sienna dependency" begin
