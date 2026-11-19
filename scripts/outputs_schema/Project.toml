@@ -5,3 +5,6 @@ OpenAPI = "d5e62ea6-ddf3-4d43-8e4c-ad5e6c8bfd7d"
 [compat]
 JSON = "1"
 OpenAPI = "=1.3.0"
+
+[sources]
+OpenAPI = {url = "https://github.com/QXT-Energy/OpenAPI.jl.git", rev = "02e8653b21493a07232fccab9ffdf0aa54312c0b"}
