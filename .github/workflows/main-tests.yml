@@ -82,6 +82,17 @@ jobs:
           continue-on-error: ${{ matrix.julia-version == 'nightly' }}
           env:
             PYTHON: ""
+        - name: Test PowerOutputSchemas
+          shell: bash
+          working-directory: PowerAnalytics.jl
+          run: |
+            julia --project=PowerOutputSchemas.jl/test -e 'using Pkg; Pkg.instantiate()'
+            julia --project=PowerOutputSchemas.jl/test PowerOutputSchemas.jl/test/runtests.jl
+        - name: Check that the generated package matches the schemas
+          if: matrix.os == 'ubuntu-latest'
+          shell: bash
+          working-directory: PowerAnalytics.jl
+          run: make outputs-schemas-check
         - uses: julia-actions/julia-processcoverage@v1
           with:
             directories: PowerAnalytics.jl/src
