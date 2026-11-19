@@ -77,8 +77,8 @@ end
 
 const _SCHEMA_RESOURCE_DATA = Any[
     (id = "https://openapi.invalid/schema/external-10bc2d90b4937a24ed6a.json", retrieval = "https://openapi.invalid/schema/external-10bc2d90b4937a24ed6a.json", media_type = "application/schema+json", json = _schema_resource("OutputsDocument.json")),
+    (id = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", retrieval = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", media_type = "application/schema+json", json = _schema_resource("common.json")),
     (id = "https://openapi.invalid/schema/external-5cf8c57a6c6f703b2210.json", retrieval = "https://openapi.invalid/schema/external-5cf8c57a6c6f703b2210.json", media_type = "application/schema+json", json = _schema_resource("Dataset.json")),
-    (id = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", retrieval = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", media_type = "application/schema+json", json = _schema_resource("common.json")),
     (id = "https://openapi.invalid/schema/external-c18992874a7ac06fab1a.json", retrieval = "https://openapi.invalid/schema/external-c18992874a7ac06fab1a.json", media_type = "application/schema+json", json = _schema_resource("Model.json")),
     (id = "https://openapi.invalid/schema/external-c7713384b74e2537b823.json", retrieval = "https://openapi.invalid/schema/external-c7713384b74e2537b823.json", media_type = "application/schema+json", json = _schema_resource("Axis.json")),
     (id = "https://openapi.invalid/schema/external-d4f04a8d9e0db95883b6.json", retrieval = "https://openapi.invalid/schema/external-d4f04a8d9e0db95883b6.json", media_type = "application/schema+json", json = _schema_resource("Table.json")),
@@ -86,25 +86,34 @@ const _SCHEMA_RESOURCE_DATA = Any[
 ]
 const _SCHEMA_ROOT_DATA = Any[
     (resource = "https://openapi.invalid/schema/external-10bc2d90b4937a24ed6a.json", pointer = "", dialect = SchemaEngine.dialect(:draft202012)),
+    (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/external-5cf8c57a6c6f703b2210.json", pointer = "", dialect = SchemaEngine.dialect(:draft202012)),
-    (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/external-c18992874a7ac06fab1a.json", pointer = "", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/external-c7713384b74e2537b823.json", pointer = "", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/external-d4f04a8d9e0db95883b6.json", pointer = "", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/Axis", dialect = SchemaEngine.dialect(:draft202012)),
+    (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/BaseReference", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/Column", dialect = SchemaEngine.dialect(:draft202012)),
+    (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/ColumnDtype", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/ComponentAxis", dialect = SchemaEngine.dialect(:draft202012)),
+    (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/Container", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/Dataset", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/DatasetLayout", dialect = SchemaEngine.dialect(:draft202012)),
+    (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/Dtype", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/ExecutionAxis", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/HorizonAxis", dialect = SchemaEngine.dialect(:draft202012)),
+    (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/Kind", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/LabelAxis", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/Model", dialect = SchemaEngine.dialect(:draft202012)),
+    (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/ModelType", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/OutputsDocument", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/ProducerInfo", dialect = SchemaEngine.dialect(:draft202012)),
+    (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/QuantityKind", dialect = SchemaEngine.dialect(:draft202012)),
+    (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/RunStatus", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/SimulationParams", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/Table", dialect = SchemaEngine.dialect(:draft202012)),
     (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/TimeAxis", dialect = SchemaEngine.dialect(:draft202012)),
+    (resource = "https://openapi.invalid/schema/root.json", pointer = "/components/schemas/UnitSystem", dialect = SchemaEngine.dialect(:draft202012)),
 ]
 const _SCHEMA_DIALECT_DATA = Any[
 ]
@@ -136,7 +145,7 @@ Reduce a generated model to JSON-ready data.
 """
 encode(value) = _encode(value)
 
-@doc "    TimeAxis\n\nOne continuous timeline. A single solve or values that are already realized use it.\n\n- `kind`: Axis kind. The value is \"time\".\n- `initial_timestamp`: Timestamp of the first time step. Naive local datetime with no zone or offset.\n- `resolution`: Time step between two values.\n- `length`: Number of time steps.\n- `group`: HDF5 group path that holds the axis data."
+@doc "    TimeAxis\n\nOne continuous timeline. An emulation model, a power flow, and a security analysis use it. The axis name is time.\n\n- `kind`: Axis kind. The value is \"time\".\n- `initial_timestamp`: Timestamp of the first time step. Naive local datetime with no zone or offset.\n- `resolution`: Time step between two values.\n- `length`: Number of time steps.\n- `group`: HDF5 group path that holds the axis data."
 Base.@kwdef struct TimeAxis
     kind::String
     initial_timestamp::String
@@ -177,7 +186,7 @@ function _form_fields(_openapi_value::TimeAxis)
     return _openapi_output
 end
 
-@doc "    ExecutionAxis\n\nThe start timestamp of each solve: initial_timestamp + k*interval, for k < count. A simulation dataset uses execution and horizon.\n\n- `kind`: Axis kind. The value is \"execution\".\n- `initial_timestamp`: Start timestamp of the first solve. Naive local datetime with no zone or offset.\n- `interval`: Time between the starts of two solves.\n- `count`: Number of solves.\n- `group`: HDF5 group path that holds the axis data."
+@doc "    ExecutionAxis\n\nThe start timestamp of each solve: initial_timestamp + k*interval, for k < count. Each decision model has one, also for a single solve, where count is 1. The axis name is execution.\n\n- `kind`: Axis kind. The value is \"execution\".\n- `initial_timestamp`: Start timestamp of the first solve. Naive local datetime with no zone or offset.\n- `interval`: Time between the starts of two solves.\n- `count`: Number of solves.\n- `group`: HDF5 group path that holds the axis data."
 Base.@kwdef struct ExecutionAxis
     kind::String
     initial_timestamp::String
@@ -218,7 +227,7 @@ function _form_fields(_openapi_value::ExecutionAxis)
     return _openapi_output
 end
 
-@doc "    HorizonAxis\n\nThe step offset inside one solve. It has horizon_count steps of the given resolution. A simulation dataset uses execution and horizon. A single solve uses time.\n\n- `kind`: Axis kind. The value is \"horizon\".\n- `resolution`: Time step between two horizon steps.\n- `horizon_count`: Number of horizon steps in one solve."
+@doc "    HorizonAxis\n\nThe step offset inside one solve. It has horizon_count steps of the given resolution. Each decision model has one. The axis name is horizon.\n\n- `kind`: Axis kind. The value is \"horizon\".\n- `resolution`: Time step between two horizon steps.\n- `horizon_count`: Number of horizon steps in one solve."
 Base.@kwdef struct HorizonAxis
     kind::String
     resolution::String
@@ -280,7 +289,7 @@ function _form_fields(_openapi_value::ComponentAxisColumnsItem)
     return _openapi_output
 end
 
-@doc "    ComponentAxis\n\nOne entry for each component.\n\n- `kind`: Axis kind. The value is \"component\".\n- `columns`: Component types of the columns. Each column holds the components of one type.\n- `length`: Number of components.\n- `group`: HDF5 group path that holds the axis data.\n- `subset`: Optional name suffix. The axis key appends it after two underscores to the component types."
+@doc "    ComponentAxis\n\nOne entry for each component. The axis name is the component_type values of the columns, joined with two underscores. A subset adds two underscores and the subset value.\n\n- `kind`: Axis kind. The value is \"component\".\n- `columns`: Component types of the columns. Each column holds the components of one type.\n- `length`: Number of components.\n- `group`: HDF5 group path that holds the axis data.\n- `subset`: Optional suffix of the axis name. The axis name appends it after two underscores to the component types."
 Base.@kwdef struct ComponentAxis
     kind::String
     columns::Vector{ComponentAxisColumnsItem}
@@ -321,9 +330,10 @@ function _form_fields(_openapi_value::ComponentAxis)
     return _openapi_output
 end
 
-@doc "    LabelAxis\n\nAn axis whose entries are not components and not time. It has only fixed string labels. IOM uses it for an extra column dimension of some store arrays.\n\n- `kind`: Axis kind. The value is \"label\".\n- `labels`: The fixed string labels."
+@doc "    LabelAxis\n\nAn axis whose entries are not components and not time. It has only fixed string labels. IOM uses it for an extra column dimension of some store arrays. The axis name is the name field.\n\n- `kind`: Axis kind. The value is \"label\".\n- `name`: Axis name. It is lower snake case and is not time, execution, or horizon.\n- `labels`: The fixed string labels."
 Base.@kwdef struct LabelAxis
     kind::String
+    name::String
     labels::Vector{String}
 end
 _decode(::Type{LabelAxis}, value) = _decode(LabelAxis, value, true)
@@ -331,14 +341,16 @@ function _decode(::Type{LabelAxis}, _openapi_raw, _openapi_validate::Bool)
     _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-c7713384b74e2537b823.json", pointer = "/\$defs/LabelAxis"), _openapi_raw, "decoding LabelAxis"; direction = :neutral)
     _openapi_object = _object(_openapi_raw, "LabelAxis")
     _openapi_field_kind = _decode_zoned(String, _required(_openapi_object, "kind", "LabelAxis"), _openapi_validate)
+    _openapi_field_name = _decode_zoned(String, _required(_openapi_object, "name", "LabelAxis"), _openapi_validate)
     _openapi_field_labels = _decode_zoned(Vector{String}, _required(_openapi_object, "labels", "LabelAxis"), _openapi_validate)
-    _openapi_unknown = setdiff(String.(collect(keys(_openapi_object))), collect(("kind","labels")))
+    _openapi_unknown = setdiff(String.(collect(keys(_openapi_object))), collect(("kind","name","labels")))
     !_openapi_validate || isempty(_openapi_unknown) || throw(DecodeError("unknown fields while decoding LabelAxis: " * join(_openapi_unknown, ", ")))
-    return LabelAxis(; kind = _openapi_field_kind, labels = _openapi_field_labels)
+    return LabelAxis(; kind = _openapi_field_kind, name = _openapi_field_name, labels = _openapi_field_labels)
 end
 function _encode(_openapi_value::LabelAxis)
     _openapi_output = JSON.Object{String,Any}()
     _openapi_value.kind isa Absent || (_openapi_output["kind"] = _encode_zoned(_openapi_value.kind))
+    _openapi_value.name isa Absent || (_openapi_output["name"] = _encode_zoned(_openapi_value.name))
     _openapi_value.labels isa Absent || (_openapi_output["labels"] = _encode_zoned(_openapi_value.labels))
     return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-c7713384b74e2537b823.json", pointer = "/\$defs/LabelAxis"), _openapi_output, "encoding LabelAxis"; direction = :neutral)
 end
@@ -346,6 +358,7 @@ end
 function _form_fields(_openapi_value::LabelAxis)
     _openapi_output = Pair{String,Any}[]
     _openapi_value.kind isa Absent || push!(_openapi_output, "kind" => _openapi_value.kind)
+    _openapi_value.name isa Absent || push!(_openapi_output, "name" => _openapi_value.name)
     _openapi_value.labels isa Absent || push!(_openapi_output, "labels" => _openapi_value.labels)
     return _openapi_output
 end
@@ -375,6 +388,26 @@ function _encode(value::Axis)
     return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-c7713384b74e2537b823.json", pointer = ""), output, "encoding Axis"; direction = :neutral)
 end
 
+@doc "    BaseReference\n\nBase of a COMPONENT_BASE value. The value system is the system base power. The value component is the own base of the component."
+struct BaseReference
+    value::String
+    function BaseReference(value::String)
+        value in ("system","component") || throw(ArgumentError("invalid BaseReference value $(repr(value))"))
+        return new(value)
+    end
+end
+_decode(::Type{BaseReference}, value) = _decode(BaseReference, value, true)
+function _decode(::Type{BaseReference}, value, _openapi_validate::Bool)
+    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/BaseReference"), value, "decoding BaseReference"; direction = :neutral)
+    return BaseReference(_decode_zoned(String, value, _openapi_validate))
+end
+function _encode(value::BaseReference)
+    output = _encode_zoned(value.value)
+    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/BaseReference"), output, "encoding BaseReference"; direction = :neutral)
+end
+Base.string(value::BaseReference) = string(value.value)
+
+@doc "    ColumnDtype\n\nElement type of a table column."
 struct ColumnDtype
     value::String
     function ColumnDtype(value::String)
@@ -384,78 +417,60 @@ struct ColumnDtype
 end
 _decode(::Type{ColumnDtype}, value) = _decode(ColumnDtype, value, true)
 function _decode(::Type{ColumnDtype}, value, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/ColumnDtype"), value, "decoding ColumnDtype"; direction = :neutral)
+    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/ColumnDtype"), value, "decoding ColumnDtype"; direction = :neutral)
     return ColumnDtype(_decode_zoned(String, value, _openapi_validate))
 end
 function _encode(value::ColumnDtype)
     output = _encode_zoned(value.value)
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/ColumnDtype"), output, "encoding ColumnDtype"; direction = :neutral)
+    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/ColumnDtype"), output, "encoding ColumnDtype"; direction = :neutral)
 end
 Base.string(value::ColumnDtype) = string(value.value)
 
-struct ColumnQuantityKind
+@doc "    QuantityKind\n\nKind of a physical quantity. The list is a copy of the quantity kinds in SiennaSchemas Core/units.json."
+struct QuantityKind
     value::String
-    function ColumnQuantityKind(value::String)
-        value in ("ActivePower","ReactivePower","ApparentPower","ActivePowerChangeRate","ElectricalEnergy","FractionPerTime","Voltage","CurrentFlow","Resistance","Reactance","Impedance","Conductance","Susceptance","Angle","Frequency","PowerPerFrequency","VoltagePerPower","Length","Elevation","Duration","OperationalDuration","CalendarPeriod","Dimensionless","Fraction","PowerFactor","HeatRate","StartFuelPerCapacity","VolumeFlowRate","HeadRate","Volume","Inductance","Capacitance","CostPerCapacity","CostPerEnergy","CostPerTime","CO2Emissions","Mass","Money","CostPerVolume","CostPerLevel","EmissionRate","CostPerMass") || throw(ArgumentError("invalid ColumnQuantityKind value $(repr(value))"))
+    function QuantityKind(value::String)
+        value in ("ActivePower","ReactivePower","ApparentPower","ActivePowerChangeRate","ElectricalEnergy","FractionPerTime","Voltage","CurrentFlow","Resistance","Reactance","Impedance","Conductance","Susceptance","Angle","Frequency","PowerPerFrequency","VoltagePerPower","Length","Elevation","Duration","OperationalDuration","CalendarPeriod","Dimensionless","Fraction","PowerFactor","HeatRate","StartFuelPerCapacity","VolumeFlowRate","HeadRate","Volume","Inductance","Capacitance","CostPerCapacity","CostPerEnergy","CostPerTime","CO2Emissions","Mass","Money","CostPerVolume","CostPerLevel","EmissionRate","CostPerMass") || throw(ArgumentError("invalid QuantityKind value $(repr(value))"))
         return new(value)
     end
 end
-_decode(::Type{ColumnQuantityKind}, value) = _decode(ColumnQuantityKind, value, true)
-function _decode(::Type{ColumnQuantityKind}, value, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/QuantityKind"), value, "decoding ColumnQuantityKind"; direction = :neutral)
-    return ColumnQuantityKind(_decode_zoned(String, value, _openapi_validate))
+_decode(::Type{QuantityKind}, value) = _decode(QuantityKind, value, true)
+function _decode(::Type{QuantityKind}, value, _openapi_validate::Bool)
+    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/QuantityKind"), value, "decoding QuantityKind"; direction = :neutral)
+    return QuantityKind(_decode_zoned(String, value, _openapi_validate))
 end
-function _encode(value::ColumnQuantityKind)
+function _encode(value::QuantityKind)
     output = _encode_zoned(value.value)
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/QuantityKind"), output, "encoding ColumnQuantityKind"; direction = :neutral)
+    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/QuantityKind"), output, "encoding QuantityKind"; direction = :neutral)
 end
-Base.string(value::ColumnQuantityKind) = string(value.value)
+Base.string(value::QuantityKind) = string(value.value)
 
-@doc "    ColumnUnitSystem\n\nCOMPONENT_BASE means per unit, on the base named by base_reference. NATURAL_UNITS means physical units, given in units; it has no base_reference."
-struct ColumnUnitSystem
+@doc "    UnitSystem\n\nCOMPONENT_BASE means per unit, on the base named by base_reference. NATURAL_UNITS means physical units, given in units; it has no base_reference."
+struct UnitSystem
     value::String
-    function ColumnUnitSystem(value::String)
-        value in ("COMPONENT_BASE","NATURAL_UNITS") || throw(ArgumentError("invalid ColumnUnitSystem value $(repr(value))"))
+    function UnitSystem(value::String)
+        value in ("COMPONENT_BASE","NATURAL_UNITS") || throw(ArgumentError("invalid UnitSystem value $(repr(value))"))
         return new(value)
     end
 end
-_decode(::Type{ColumnUnitSystem}, value) = _decode(ColumnUnitSystem, value, true)
-function _decode(::Type{ColumnUnitSystem}, value, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/UnitSystem"), value, "decoding ColumnUnitSystem"; direction = :neutral)
-    return ColumnUnitSystem(_decode_zoned(String, value, _openapi_validate))
+_decode(::Type{UnitSystem}, value) = _decode(UnitSystem, value, true)
+function _decode(::Type{UnitSystem}, value, _openapi_validate::Bool)
+    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/UnitSystem"), value, "decoding UnitSystem"; direction = :neutral)
+    return UnitSystem(_decode_zoned(String, value, _openapi_validate))
 end
-function _encode(value::ColumnUnitSystem)
+function _encode(value::UnitSystem)
     output = _encode_zoned(value.value)
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/UnitSystem"), output, "encoding ColumnUnitSystem"; direction = :neutral)
+    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/UnitSystem"), output, "encoding UnitSystem"; direction = :neutral)
 end
-Base.string(value::ColumnUnitSystem) = string(value.value)
+Base.string(value::UnitSystem) = string(value.value)
 
-@doc "    ColumnBaseReference\n\nBase of a COMPONENT_BASE value. The value system is the system base power. The value component is the own base of the component."
-struct ColumnBaseReference
-    value::String
-    function ColumnBaseReference(value::String)
-        value in ("system","component") || throw(ArgumentError("invalid ColumnBaseReference value $(repr(value))"))
-        return new(value)
-    end
-end
-_decode(::Type{ColumnBaseReference}, value) = _decode(ColumnBaseReference, value, true)
-function _decode(::Type{ColumnBaseReference}, value, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/BaseReference"), value, "decoding ColumnBaseReference"; direction = :neutral)
-    return ColumnBaseReference(_decode_zoned(String, value, _openapi_validate))
-end
-function _encode(value::ColumnBaseReference)
-    output = _encode_zoned(value.value)
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/BaseReference"), output, "encoding ColumnBaseReference"; direction = :neutral)
-end
-Base.string(value::ColumnBaseReference) = string(value.value)
-
-@doc "    Column\n\n- `unit_system`: COMPONENT_BASE means per unit, on the base named by base_reference. NATURAL_UNITS means physical units, given in units; it has no base_reference.\n- `base_reference`: Base of a COMPONENT_BASE value. The value system is the system base power. The value component is the own base of the component."
+@doc "    Column\n\nOne column of a table.\n\n- `name`: Column name. It is unique in the table.\n- `dtype`: Element type of the column.\n- `quantity_kind`: Kind of the physical quantity. The name comes from the shared quantity registry.\n- `unit_system`: Unit system of the values.\n- `base_reference`: Base of a COMPONENT_BASE value. It is absent for NATURAL_UNITS.\n- `units`: Unit of the values. It is pu for COMPONENT_BASE."
 Base.@kwdef struct Column
     name::String
     dtype::ColumnDtype
-    quantity_kind::Union{Absent,ColumnQuantityKind,Nothing} = ABSENT
-    unit_system::Union{Absent,ColumnUnitSystem,Nothing} = ABSENT
-    base_reference::Union{Absent,ColumnBaseReference,Nothing} = ABSENT
+    quantity_kind::Union{Absent,Nothing,QuantityKind} = ABSENT
+    unit_system::Union{Absent,Nothing,UnitSystem} = ABSENT
+    base_reference::Union{Absent,BaseReference,Nothing} = ABSENT
     units::Union{Absent,Nothing,String} = ABSENT
 end
 _decode(::Type{Column}, value) = _decode(Column, value, true)
@@ -464,9 +479,9 @@ function _decode(::Type{Column}, _openapi_raw, _openapi_validate::Bool)
     _openapi_object = _object(_openapi_raw, "Column")
     _openapi_field_name = _decode_zoned(String, _required(_openapi_object, "name", "Column"), _openapi_validate)
     _openapi_field_dtype = _decode_zoned(ColumnDtype, _required(_openapi_object, "dtype", "Column"), _openapi_validate)
-    _openapi_field_quantity_kind = haskey(_openapi_object, "quantity_kind") ? _decode_zoned(Union{Absent,ColumnQuantityKind,Nothing}, _openapi_object["quantity_kind"], _openapi_validate) : ABSENT
-    _openapi_field_unit_system = haskey(_openapi_object, "unit_system") ? _decode_zoned(Union{Absent,ColumnUnitSystem,Nothing}, _openapi_object["unit_system"], _openapi_validate) : ABSENT
-    _openapi_field_base_reference = haskey(_openapi_object, "base_reference") ? _decode_zoned(Union{Absent,ColumnBaseReference,Nothing}, _openapi_object["base_reference"], _openapi_validate) : ABSENT
+    _openapi_field_quantity_kind = haskey(_openapi_object, "quantity_kind") ? _decode_zoned(Union{Absent,Nothing,QuantityKind}, _openapi_object["quantity_kind"], _openapi_validate) : ABSENT
+    _openapi_field_unit_system = haskey(_openapi_object, "unit_system") ? _decode_zoned(Union{Absent,Nothing,UnitSystem}, _openapi_object["unit_system"], _openapi_validate) : ABSENT
+    _openapi_field_base_reference = haskey(_openapi_object, "base_reference") ? _decode_zoned(Union{Absent,BaseReference,Nothing}, _openapi_object["base_reference"], _openapi_validate) : ABSENT
     _openapi_field_units = haskey(_openapi_object, "units") ? _decode_zoned(Union{Absent,Nothing,String}, _openapi_object["units"], _openapi_validate) : ABSENT
     _openapi_unknown = setdiff(String.(collect(keys(_openapi_object))), collect(("name","dtype","quantity_kind","unit_system","base_reference","units")))
     !_openapi_validate || isempty(_openapi_unknown) || throw(DecodeError("unknown fields while decoding Column: " * join(_openapi_unknown, ", ")))
@@ -494,79 +509,45 @@ function _form_fields(_openapi_value::Column)
     return _openapi_output
 end
 
-struct DatasetContainer
+@doc "    Container\n\nName of a store container."
+struct Container
     value::String
-    function DatasetContainer(value::String)
-        value in ("variables","aux_variables","parameters","expressions","duals") || throw(ArgumentError("invalid DatasetContainer value $(repr(value))"))
+    function Container(value::String)
+        value in ("variables","aux_variables","parameters","expressions","duals") || throw(ArgumentError("invalid Container value $(repr(value))"))
         return new(value)
     end
 end
-_decode(::Type{DatasetContainer}, value) = _decode(DatasetContainer, value, true)
-function _decode(::Type{DatasetContainer}, value, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/Container"), value, "decoding DatasetContainer"; direction = :neutral)
-    return DatasetContainer(_decode_zoned(String, value, _openapi_validate))
+_decode(::Type{Container}, value) = _decode(Container, value, true)
+function _decode(::Type{Container}, value, _openapi_validate::Bool)
+    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/Container"), value, "decoding Container"; direction = :neutral)
+    return Container(_decode_zoned(String, value, _openapi_validate))
 end
-function _encode(value::DatasetContainer)
+function _encode(value::Container)
     output = _encode_zoned(value.value)
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/Container"), output, "encoding DatasetContainer"; direction = :neutral)
+    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/Container"), output, "encoding Container"; direction = :neutral)
 end
-Base.string(value::DatasetContainer) = string(value.value)
+Base.string(value::Container) = string(value.value)
 
-struct DatasetDtype
+@doc "    Dtype\n\nElement type of a dataset."
+struct Dtype
     value::String
-    function DatasetDtype(value::String)
-        value in ("f64","f32","i64","i32","bool") || throw(ArgumentError("invalid DatasetDtype value $(repr(value))"))
+    function Dtype(value::String)
+        value in ("f64","f32","i64","i32","bool") || throw(ArgumentError("invalid Dtype value $(repr(value))"))
         return new(value)
     end
 end
-_decode(::Type{DatasetDtype}, value) = _decode(DatasetDtype, value, true)
-function _decode(::Type{DatasetDtype}, value, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/Dtype"), value, "decoding DatasetDtype"; direction = :neutral)
-    return DatasetDtype(_decode_zoned(String, value, _openapi_validate))
+_decode(::Type{Dtype}, value) = _decode(Dtype, value, true)
+function _decode(::Type{Dtype}, value, _openapi_validate::Bool)
+    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/Dtype"), value, "decoding Dtype"; direction = :neutral)
+    return Dtype(_decode_zoned(String, value, _openapi_validate))
 end
-function _encode(value::DatasetDtype)
+function _encode(value::Dtype)
     output = _encode_zoned(value.value)
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/Dtype"), output, "encoding DatasetDtype"; direction = :neutral)
+    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/Dtype"), output, "encoding Dtype"; direction = :neutral)
 end
-Base.string(value::DatasetDtype) = string(value.value)
+Base.string(value::Dtype) = string(value.value)
 
-@doc "    DatasetFillValue\n\nMust match dtype: f64 and f32 take a number or \"NaN\"; i64 and i32 take an integer; bool takes a boolean."
-struct DatasetFillValue
-    value::Union{Bool,Float64,String}
-end
-_decode(::Type{DatasetFillValue}, value) = _decode(DatasetFillValue, value, true)
-function _decode(::Type{DatasetFillValue}, value, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-5cf8c57a6c6f703b2210.json", pointer = "/properties/fill_value"), value, "decoding DatasetFillValue"; direction = :neutral)
-    matches = Any[]
-    if !_openapi_validate || _schema_valid(_SPEC, (resource = "https://openapi.invalid/schema/external-5cf8c57a6c6f703b2210.json", pointer = "/properties/fill_value/oneOf/0"), value; direction = :neutral)
-        try
-            push!(matches, _decode_zoned(String, value, _openapi_validate))
-        catch error
-            error isa DecodeError || rethrow()
-        end
-    end
-    if !_openapi_validate || _schema_valid(_SPEC, (resource = "https://openapi.invalid/schema/external-5cf8c57a6c6f703b2210.json", pointer = "/properties/fill_value/oneOf/1"), value; direction = :neutral)
-        try
-            push!(matches, _decode_zoned(Float64, value, _openapi_validate))
-        catch error
-            error isa DecodeError || rethrow()
-        end
-    end
-    if !_openapi_validate || _schema_valid(_SPEC, (resource = "https://openapi.invalid/schema/external-5cf8c57a6c6f703b2210.json", pointer = "/properties/fill_value/oneOf/2"), value; direction = :neutral)
-        try
-            push!(matches, _decode_zoned(Bool, value, _openapi_validate))
-        catch error
-            error isa DecodeError || rethrow()
-        end
-    end
-    length(matches) == 1 || throw(DecodeError("oneOf value did not select exactly one variant of DatasetFillValue"))
-    return DatasetFillValue(first(matches))
-end
-function _encode(value::DatasetFillValue)
-    output = _encode_zoned(value.value)
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-5cf8c57a6c6f703b2210.json", pointer = "/properties/fill_value"), output, "encoding DatasetFillValue"; direction = :neutral)
-end
-
+@doc "    DatasetLayout\n\nHDF5 storage layout of an array. A reader uses it to plan partial reads.\n\n- `chunks`: Chunk size of each array dimension.\n- `filters`: HDF5 filters that the writer applied, in order."
 Base.@kwdef struct DatasetLayout
     chunks::Vector{Int64}
     filters::Vector{String}
@@ -595,18 +576,18 @@ function _form_fields(_openapi_value::DatasetLayout)
     return _openapi_output
 end
 
-@doc "    Dataset\n\n- `axes`: Each item is a key of the model axes object. The order is the storage order of the array dimensions. The writer sets it.\n- `fill_value`: Must match dtype: f64 and f32 take a number or \"NaN\"; i64 and i32 take an integer; bool takes a boolean.\n- `unit_system`: COMPONENT_BASE means per unit, on the base named by base_reference. NATURAL_UNITS means physical units, given in units; it has no base_reference.\n- `base_reference`: Base of a COMPONENT_BASE value. The value system is the system base power. The value component is the own base of the component."
+@doc "    Dataset\n\nOne dense array of a model. The tuple entry_type, component_type, and meta identifies it in the model.\n\n- `container`: Store container that holds the entry.\n- `entry_type`: Name of the entry type, for example ActivePowerVariable.\n- `component_type`: Name of the component type. The entry has no component type when this field is absent.\n- `meta`: Optional entry label that separates entries with the same entry type and component type. It is empty when absent.\n- `axes`: Axis names, in the storage order of the array dimensions. The writer sets the order. For a time, execution, or horizon axis the name is the kind. For a component axis it is the component_type values joined with two underscores, plus two underscores and the subset value if present. For a label axis it is the name field.\n- `dtype`: Element type of the array.\n- `fill_value`: Value of the array cells that no solve wrote. It must match dtype: f64 and f32 take a number or \"NaN\"; i64 and i32 take an integer; bool takes a boolean.\n- `quantity_kind`: Kind of the physical quantity. The name comes from the shared quantity registry.\n- `unit_system`: Unit system of the values.\n- `base_reference`: Base of a COMPONENT_BASE value. It is absent for NATURAL_UNITS.\n- `units`: Unit of the values. It is pu for COMPONENT_BASE.\n- `layout`: HDF5 chunking and filters of the array, as written.\n- `path`: HDF5 path of the array."
 Base.@kwdef struct Dataset
-    container::DatasetContainer
+    container::Container
     entry_type::String
     component_type::Union{Absent,Nothing,String} = ABSENT
     meta::String
     axes::Vector{String}
-    dtype::DatasetDtype
-    fill_value::DatasetFillValue
-    quantity_kind::ColumnQuantityKind
-    unit_system::ColumnUnitSystem
-    base_reference::Union{Absent,ColumnBaseReference,Nothing} = ABSENT
+    dtype::Dtype
+    fill_value::Any
+    quantity_kind::QuantityKind
+    unit_system::UnitSystem
+    base_reference::Union{Absent,BaseReference,Nothing} = ABSENT
     units::String
     layout::DatasetLayout
     path::String
@@ -615,16 +596,16 @@ _decode(::Type{Dataset}, value) = _decode(Dataset, value, true)
 function _decode(::Type{Dataset}, _openapi_raw, _openapi_validate::Bool)
     _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-5cf8c57a6c6f703b2210.json", pointer = ""), _openapi_raw, "decoding Dataset"; direction = :neutral)
     _openapi_object = _object(_openapi_raw, "Dataset")
-    _openapi_field_container = _decode_zoned(DatasetContainer, _required(_openapi_object, "container", "Dataset"), _openapi_validate)
+    _openapi_field_container = _decode_zoned(Container, _required(_openapi_object, "container", "Dataset"), _openapi_validate)
     _openapi_field_entry_type = _decode_zoned(String, _required(_openapi_object, "entry_type", "Dataset"), _openapi_validate)
     _openapi_field_component_type = haskey(_openapi_object, "component_type") ? _decode_zoned(Union{Absent,Nothing,String}, _openapi_object["component_type"], _openapi_validate) : ABSENT
     _openapi_field_meta = _decode_zoned(String, _required(_openapi_object, "meta", "Dataset"), _openapi_validate)
     _openapi_field_axes = _decode_zoned(Vector{String}, _required(_openapi_object, "axes", "Dataset"), _openapi_validate)
-    _openapi_field_dtype = _decode_zoned(DatasetDtype, _required(_openapi_object, "dtype", "Dataset"), _openapi_validate)
-    _openapi_field_fill_value = _decode_zoned(DatasetFillValue, _required(_openapi_object, "fill_value", "Dataset"), _openapi_validate)
-    _openapi_field_quantity_kind = _decode_zoned(ColumnQuantityKind, _required(_openapi_object, "quantity_kind", "Dataset"), _openapi_validate)
-    _openapi_field_unit_system = _decode_zoned(ColumnUnitSystem, _required(_openapi_object, "unit_system", "Dataset"), _openapi_validate)
-    _openapi_field_base_reference = haskey(_openapi_object, "base_reference") ? _decode_zoned(Union{Absent,ColumnBaseReference,Nothing}, _openapi_object["base_reference"], _openapi_validate) : ABSENT
+    _openapi_field_dtype = _decode_zoned(Dtype, _required(_openapi_object, "dtype", "Dataset"), _openapi_validate)
+    _openapi_field_fill_value = _decode_zoned(Any, _required(_openapi_object, "fill_value", "Dataset"), _openapi_validate)
+    _openapi_field_quantity_kind = _decode_zoned(QuantityKind, _required(_openapi_object, "quantity_kind", "Dataset"), _openapi_validate)
+    _openapi_field_unit_system = _decode_zoned(UnitSystem, _required(_openapi_object, "unit_system", "Dataset"), _openapi_validate)
+    _openapi_field_base_reference = haskey(_openapi_object, "base_reference") ? _decode_zoned(Union{Absent,BaseReference,Nothing}, _openapi_object["base_reference"], _openapi_validate) : ABSENT
     _openapi_field_units = _decode_zoned(String, _required(_openapi_object, "units", "Dataset"), _openapi_validate)
     _openapi_field_layout = _decode_zoned(DatasetLayout, _required(_openapi_object, "layout", "Dataset"), _openapi_validate)
     _openapi_field_path = _decode_zoned(String, _required(_openapi_object, "path", "Dataset"), _openapi_validate)
@@ -668,35 +649,56 @@ function _form_fields(_openapi_value::Dataset)
     return _openapi_output
 end
 
-struct ModelModelType
+@doc "    Kind\n\nKind of run. Listing tools use it as a hint."
+struct Kind
     value::String
-    function ModelModelType(value::String)
-        value in ("decision","emulation","power_flow","security_analysis") || throw(ArgumentError("invalid ModelModelType value $(repr(value))"))
+    function Kind(value::String)
+        value in ("single","simulation","power_flow","security_analysis") || throw(ArgumentError("invalid Kind value $(repr(value))"))
         return new(value)
     end
 end
-_decode(::Type{ModelModelType}, value) = _decode(ModelModelType, value, true)
-function _decode(::Type{ModelModelType}, value, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/ModelType"), value, "decoding ModelModelType"; direction = :neutral)
-    return ModelModelType(_decode_zoned(String, value, _openapi_validate))
+_decode(::Type{Kind}, value) = _decode(Kind, value, true)
+function _decode(::Type{Kind}, value, _openapi_validate::Bool)
+    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/Kind"), value, "decoding Kind"; direction = :neutral)
+    return Kind(_decode_zoned(String, value, _openapi_validate))
 end
-function _encode(value::ModelModelType)
+function _encode(value::Kind)
     output = _encode_zoned(value.value)
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/ModelType"), output, "encoding ModelModelType"; direction = :neutral)
+    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/Kind"), output, "encoding Kind"; direction = :neutral)
 end
-Base.string(value::ModelModelType) = string(value.value)
+Base.string(value::Kind) = string(value.value)
 
+@doc "    ModelType\n\nKind of model that wrote the data."
+struct ModelType
+    value::String
+    function ModelType(value::String)
+        value in ("decision","emulation","power_flow","security_analysis") || throw(ArgumentError("invalid ModelType value $(repr(value))"))
+        return new(value)
+    end
+end
+_decode(::Type{ModelType}, value) = _decode(ModelType, value, true)
+function _decode(::Type{ModelType}, value, _openapi_validate::Bool)
+    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/ModelType"), value, "decoding ModelType"; direction = :neutral)
+    return ModelType(_decode_zoned(String, value, _openapi_validate))
+end
+function _encode(value::ModelType)
+    output = _encode_zoned(value.value)
+    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/ModelType"), output, "encoding ModelType"; direction = :neutral)
+end
+Base.string(value::ModelType) = string(value.value)
+
+@doc "    ModelSettings\n\nSettings that a reader needs to interpret the data. Each value is a string, a number, or a boolean."
 Base.@kwdef struct ModelSettings
-    additional_properties::Dict{String,Union{Bool,Float64,String}} = Dict{String,Union{Bool,Float64,String}}()
+    additional_properties::Dict{String,Any} = Dict{String,Any}()
 end
 _decode(::Type{ModelSettings}, value) = _decode(ModelSettings, value, true)
 function _decode(::Type{ModelSettings}, _openapi_raw, _openapi_validate::Bool)
     _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-c18992874a7ac06fab1a.json", pointer = "/properties/settings"), _openapi_raw, "decoding ModelSettings"; direction = :neutral)
     _openapi_object = _object(_openapi_raw, "ModelSettings")
-    _openapi_additional_properties = Dict{String,Union{Bool,Float64,String}}()
+    _openapi_additional_properties = Dict{String,Any}()
     for (_openapi_key, _openapi_item) in _openapi_object
         String(_openapi_key) in () && continue
-        _openapi_additional_properties[String(_openapi_key)] = _decode_zoned(Union{Bool,Float64,String}, _openapi_item, _openapi_validate)
+        _openapi_additional_properties[String(_openapi_key)] = _decode_zoned(Any, _openapi_item, _openapi_validate)
     end
     return ModelSettings(; additional_properties = _openapi_additional_properties)
 end
@@ -715,35 +717,7 @@ function _form_fields(_openapi_value::ModelSettings)
     return _openapi_output
 end
 
-Base.@kwdef struct ModelAxes
-    additional_properties::Dict{String,Axis} = Dict{String,Axis}()
-end
-_decode(::Type{ModelAxes}, value) = _decode(ModelAxes, value, true)
-function _decode(::Type{ModelAxes}, _openapi_raw, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-c18992874a7ac06fab1a.json", pointer = "/properties/axes"), _openapi_raw, "decoding ModelAxes"; direction = :neutral)
-    _openapi_object = _object(_openapi_raw, "ModelAxes")
-    _openapi_additional_properties = Dict{String,Axis}()
-    for (_openapi_key, _openapi_item) in _openapi_object
-        String(_openapi_key) in () && continue
-        _openapi_additional_properties[String(_openapi_key)] = _decode_zoned(Axis, _openapi_item, _openapi_validate)
-    end
-    return ModelAxes(; additional_properties = _openapi_additional_properties)
-end
-function _encode(_openapi_value::ModelAxes)
-    _openapi_output = JSON.Object{String,Any}()
-    for (_openapi_key, _openapi_item) in _openapi_value.additional_properties
-        haskey(_openapi_output, _openapi_key) && throw(ArgumentError("additional property conflicts with declared field: " * _openapi_key))
-        _openapi_output[_openapi_key] = _encode_zoned(_openapi_item)
-    end
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-c18992874a7ac06fab1a.json", pointer = "/properties/axes"), _openapi_output, "encoding ModelAxes"; direction = :neutral)
-end
-
-function _form_fields(_openapi_value::ModelAxes)
-    _openapi_output = Pair{String,Any}[]
-    append!(_openapi_output, collect(_openapi_value.additional_properties))
-    return _openapi_output
-end
-
+@doc "    Table\n\nA set of 1-D columns of the same length, such as optimizer statistics. Each column is one HDF5 dataset.\n\n- `name`: Table name. It is unique in the model.\n- `group`: HDF5 group path that holds the columns.\n- `length`: Number of rows.\n- `columns`: Columns of the table."
 Base.@kwdef struct Table
     name::String
     group::String
@@ -780,14 +754,15 @@ function _form_fields(_openapi_value::Table)
     return _openapi_output
 end
 
-@doc "    Model\n\n- `supports_realized_values_post_calculation`: True when PowerAnalytics can join the datasets of the model across executions into one time axis. The join keeps the first interval/resolution horizon steps of each execution. A model with a time axis sets it to false."
+@doc "    Model\n\nOne model that wrote data to the artifact. It declares its axes once and lists the datasets and tables that use them.\n\n- `name`: Model name. It is unique in the document and names the HDF5 group of the model.\n- `model_type`: Kind of model that wrote the data. Readers dispatch on this field.\n- `system_uuid`: UUID of the system that the model ran on. It is a key of the document systems object.\n- `base_power`: Base power of the model in MVA. Readers use it for each dataset with base_reference system.\n- `supports_realized_values_post_calculation`: True when PowerAnalytics can join the datasets of the model across executions into one time axis. The join keeps the first interval/resolution horizon steps of each execution. A model with a time axis sets it to false.\n- `settings`: Settings that a reader needs to interpret the data. Each value is a string, a number, or a boolean.\n- `axes`: Every axis that a dataset of the model uses. Each axis has a name that its kind and fields define. Axis names are unique in the model.\n- `datasets`: Dense arrays of the model.\n- `tables`: Column sets of the model, such as optimizer statistics."
 Base.@kwdef struct Model
-    model_type::ModelModelType
+    name::String
+    model_type::ModelType
     system_uuid::String
     base_power::Float64
     supports_realized_values_post_calculation::Bool
     settings::ModelSettings
-    axes::ModelAxes
+    axes::Vector{Axis}
     datasets::Vector{Dataset}
     tables::Union{Absent,Nothing,Vector{Table}} = ABSENT
 end
@@ -795,20 +770,22 @@ _decode(::Type{Model}, value) = _decode(Model, value, true)
 function _decode(::Type{Model}, _openapi_raw, _openapi_validate::Bool)
     _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-c18992874a7ac06fab1a.json", pointer = ""), _openapi_raw, "decoding Model"; direction = :neutral)
     _openapi_object = _object(_openapi_raw, "Model")
-    _openapi_field_model_type = _decode_zoned(ModelModelType, _required(_openapi_object, "model_type", "Model"), _openapi_validate)
+    _openapi_field_name = _decode_zoned(String, _required(_openapi_object, "name", "Model"), _openapi_validate)
+    _openapi_field_model_type = _decode_zoned(ModelType, _required(_openapi_object, "model_type", "Model"), _openapi_validate)
     _openapi_field_system_uuid = _decode_zoned(String, _required(_openapi_object, "system_uuid", "Model"), _openapi_validate)
     _openapi_field_base_power = _decode_zoned(Float64, _required(_openapi_object, "base_power", "Model"), _openapi_validate)
     _openapi_field_supports_realized_values_post_calculation = _decode_zoned(Bool, _required(_openapi_object, "supports_realized_values_post_calculation", "Model"), _openapi_validate)
     _openapi_field_settings = _decode_zoned(ModelSettings, _required(_openapi_object, "settings", "Model"), _openapi_validate)
-    _openapi_field_axes = _decode_zoned(ModelAxes, _required(_openapi_object, "axes", "Model"), _openapi_validate)
+    _openapi_field_axes = _decode_zoned(Vector{Axis}, _required(_openapi_object, "axes", "Model"), _openapi_validate)
     _openapi_field_datasets = _decode_zoned(Vector{Dataset}, _required(_openapi_object, "datasets", "Model"), _openapi_validate)
     _openapi_field_tables = haskey(_openapi_object, "tables") ? _decode_zoned(Union{Absent,Nothing,Vector{Table}}, _openapi_object["tables"], _openapi_validate) : ABSENT
-    _openapi_unknown = setdiff(String.(collect(keys(_openapi_object))), collect(("model_type","system_uuid","base_power","supports_realized_values_post_calculation","settings","axes","datasets","tables")))
+    _openapi_unknown = setdiff(String.(collect(keys(_openapi_object))), collect(("name","model_type","system_uuid","base_power","supports_realized_values_post_calculation","settings","axes","datasets","tables")))
     !_openapi_validate || isempty(_openapi_unknown) || throw(DecodeError("unknown fields while decoding Model: " * join(_openapi_unknown, ", ")))
-    return Model(; model_type = _openapi_field_model_type, system_uuid = _openapi_field_system_uuid, base_power = _openapi_field_base_power, supports_realized_values_post_calculation = _openapi_field_supports_realized_values_post_calculation, settings = _openapi_field_settings, axes = _openapi_field_axes, datasets = _openapi_field_datasets, tables = _openapi_field_tables)
+    return Model(; name = _openapi_field_name, model_type = _openapi_field_model_type, system_uuid = _openapi_field_system_uuid, base_power = _openapi_field_base_power, supports_realized_values_post_calculation = _openapi_field_supports_realized_values_post_calculation, settings = _openapi_field_settings, axes = _openapi_field_axes, datasets = _openapi_field_datasets, tables = _openapi_field_tables)
 end
 function _encode(_openapi_value::Model)
     _openapi_output = JSON.Object{String,Any}()
+    _openapi_value.name isa Absent || (_openapi_output["name"] = _encode_zoned(_openapi_value.name))
     _openapi_value.model_type isa Absent || (_openapi_output["model_type"] = _encode_zoned(_openapi_value.model_type))
     _openapi_value.system_uuid isa Absent || (_openapi_output["system_uuid"] = _encode_zoned(_openapi_value.system_uuid))
     _openapi_value.base_power isa Absent || (_openapi_output["base_power"] = _encode_zoned(_openapi_value.base_power))
@@ -822,6 +799,7 @@ end
 
 function _form_fields(_openapi_value::Model)
     _openapi_output = Pair{String,Any}[]
+    _openapi_value.name isa Absent || push!(_openapi_output, "name" => _openapi_value.name)
     _openapi_value.model_type isa Absent || push!(_openapi_output, "model_type" => _openapi_value.model_type)
     _openapi_value.system_uuid isa Absent || push!(_openapi_output, "system_uuid" => _openapi_value.system_uuid)
     _openapi_value.base_power isa Absent || push!(_openapi_output, "base_power" => _openapi_value.base_power)
@@ -833,24 +811,7 @@ function _form_fields(_openapi_value::Model)
     return _openapi_output
 end
 
-struct OutputsDocumentKind
-    value::String
-    function OutputsDocumentKind(value::String)
-        value in ("single","simulation","power_flow","security_analysis") || throw(ArgumentError("invalid OutputsDocumentKind value $(repr(value))"))
-        return new(value)
-    end
-end
-_decode(::Type{OutputsDocumentKind}, value) = _decode(OutputsDocumentKind, value, true)
-function _decode(::Type{OutputsDocumentKind}, value, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/Kind"), value, "decoding OutputsDocumentKind"; direction = :neutral)
-    return OutputsDocumentKind(_decode_zoned(String, value, _openapi_validate))
-end
-function _encode(value::OutputsDocumentKind)
-    output = _encode_zoned(value.value)
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/Kind"), output, "encoding OutputsDocumentKind"; direction = :neutral)
-end
-Base.string(value::OutputsDocumentKind) = string(value.value)
-
+@doc "    ProducerInfo\n\nProvenance of the document. The writing package records it at write time.\n\n- `package`: Name of the writing package.\n- `version`: Version of the writing package.\n- `julia`: Julia version that ran the writer."
 Base.@kwdef struct ProducerInfo
     package::String
     version::String
@@ -883,24 +844,26 @@ function _form_fields(_openapi_value::ProducerInfo)
     return _openapi_output
 end
 
-struct OutputsDocumentStatus
+@doc "    RunStatus\n\nStatus of a run. RUNNING means a writer is open. The other two values name the end state."
+struct RunStatus
     value::String
-    function OutputsDocumentStatus(value::String)
-        value in ("RUNNING","SUCCESSFULLY_FINALIZED","FAILED") || throw(ArgumentError("invalid OutputsDocumentStatus value $(repr(value))"))
+    function RunStatus(value::String)
+        value in ("RUNNING","SUCCESSFULLY_FINALIZED","FAILED") || throw(ArgumentError("invalid RunStatus value $(repr(value))"))
         return new(value)
     end
 end
-_decode(::Type{OutputsDocumentStatus}, value) = _decode(OutputsDocumentStatus, value, true)
-function _decode(::Type{OutputsDocumentStatus}, value, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/RunStatus"), value, "decoding OutputsDocumentStatus"; direction = :neutral)
-    return OutputsDocumentStatus(_decode_zoned(String, value, _openapi_validate))
+_decode(::Type{RunStatus}, value) = _decode(RunStatus, value, true)
+function _decode(::Type{RunStatus}, value, _openapi_validate::Bool)
+    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/RunStatus"), value, "decoding RunStatus"; direction = :neutral)
+    return RunStatus(_decode_zoned(String, value, _openapi_validate))
 end
-function _encode(value::OutputsDocumentStatus)
+function _encode(value::RunStatus)
     output = _encode_zoned(value.value)
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-bfa8f3cc3f24128d93eb.json", pointer = "/\$defs/RunStatus"), output, "encoding OutputsDocumentStatus"; direction = :neutral)
+    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-2f0e76bb31fe45edd957.json", pointer = "/\$defs/RunStatus"), output, "encoding RunStatus"; direction = :neutral)
 end
-Base.string(value::OutputsDocumentStatus) = string(value.value)
+Base.string(value::RunStatus) = string(value.value)
 
+@doc "    OutputsDocumentSystems\n\nMaps the UUID of each source system to its directory, relative to the artifact."
 Base.@kwdef struct OutputsDocumentSystems
     additional_properties::Dict{String,String} = Dict{String,String}()
 end
@@ -930,7 +893,7 @@ function _form_fields(_openapi_value::OutputsDocumentSystems)
     return _openapi_output
 end
 
-@doc "    SimulationParams\n\n- `initial_time`: Naive local datetime with no zone or offset."
+@doc "    SimulationParams\n\nParameters of the whole simulation run. They do not belong to one model.\n\n- `initial_time`: Start of the simulation. Naive local datetime with no zone or offset.\n- `step_resolution`: Duration of one simulation step.\n- `num_steps`: Number of simulation steps.\n- `execution_order`: Names of the models in the order that the simulation runs them."
 Base.@kwdef struct SimulationParams
     initial_time::String
     step_resolution::String
@@ -967,58 +930,29 @@ function _form_fields(_openapi_value::SimulationParams)
     return _openapi_output
 end
 
-Base.@kwdef struct OutputsDocumentModels
-    additional_properties::Dict{String,Model} = Dict{String,Model}()
-end
-_decode(::Type{OutputsDocumentModels}, value) = _decode(OutputsDocumentModels, value, true)
-function _decode(::Type{OutputsDocumentModels}, _openapi_raw, _openapi_validate::Bool)
-    _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-10bc2d90b4937a24ed6a.json", pointer = "/properties/models"), _openapi_raw, "decoding OutputsDocumentModels"; direction = :neutral)
-    _openapi_object = _object(_openapi_raw, "OutputsDocumentModels")
-    _openapi_additional_properties = Dict{String,Model}()
-    for (_openapi_key, _openapi_item) in _openapi_object
-        String(_openapi_key) in () && continue
-        _openapi_additional_properties[String(_openapi_key)] = _decode_zoned(Model, _openapi_item, _openapi_validate)
-    end
-    return OutputsDocumentModels(; additional_properties = _openapi_additional_properties)
-end
-function _encode(_openapi_value::OutputsDocumentModels)
-    _openapi_output = JSON.Object{String,Any}()
-    for (_openapi_key, _openapi_item) in _openapi_value.additional_properties
-        haskey(_openapi_output, _openapi_key) && throw(ArgumentError("additional property conflicts with declared field: " * _openapi_key))
-        _openapi_output[_openapi_key] = _encode_zoned(_openapi_item)
-    end
-    return _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-10bc2d90b4937a24ed6a.json", pointer = "/properties/models"), _openapi_output, "encoding OutputsDocumentModels"; direction = :neutral)
-end
-
-function _form_fields(_openapi_value::OutputsDocumentModels)
-    _openapi_output = Pair{String,Any}[]
-    append!(_openapi_output, collect(_openapi_value.additional_properties))
-    return _openapi_output
-end
-
-@doc "    OutputsDocument\n\n- `created_at`: Absolute instant. Requires a trailing Z or a UTC offset."
+@doc "    OutputsDocument\n\nThe outputs.json metadata document. It describes the raw model outputs that one run stored in the artifact.\n\n- `schema_version`: Version of this schema that the document satisfies.\n- `kind`: Kind of run. Listing tools use it as a hint. Readers dispatch on the model_type of each model.\n- `producer`: The package that wrote the document.\n- `created_at`: Absolute instant. Requires a trailing Z or a UTC offset.\n- `status`: Status of the run.\n- `systems`: Maps the UUID of each source system to its directory, relative to the artifact.\n- `simulation`: Parameters of the simulation. Required when kind is simulation, and not allowed for other kinds.\n- `models`: The models that wrote data. Model names are unique in the document."
 Base.@kwdef struct OutputsDocument
     schema_version::String
-    kind::OutputsDocumentKind
+    kind::Kind
     producer::ProducerInfo
     created_at::TimeZones.ZonedDateTime
-    status::OutputsDocumentStatus
+    status::RunStatus
     systems::OutputsDocumentSystems
     simulation::Union{Absent,Nothing,SimulationParams} = ABSENT
-    models::OutputsDocumentModels
+    models::Vector{Model}
 end
 _decode(::Type{OutputsDocument}, value) = _decode(OutputsDocument, value, true)
 function _decode(::Type{OutputsDocument}, _openapi_raw, _openapi_validate::Bool)
     _openapi_validate && _validate_schema(_SPEC, (resource = "https://openapi.invalid/schema/external-10bc2d90b4937a24ed6a.json", pointer = ""), _openapi_raw, "decoding OutputsDocument"; direction = :neutral)
     _openapi_object = _object(_openapi_raw, "OutputsDocument")
     _openapi_field_schema_version = _decode_zoned(String, _required(_openapi_object, "schema_version", "OutputsDocument"), _openapi_validate)
-    _openapi_field_kind = _decode_zoned(OutputsDocumentKind, _required(_openapi_object, "kind", "OutputsDocument"), _openapi_validate)
+    _openapi_field_kind = _decode_zoned(Kind, _required(_openapi_object, "kind", "OutputsDocument"), _openapi_validate)
     _openapi_field_producer = _decode_zoned(ProducerInfo, _required(_openapi_object, "producer", "OutputsDocument"), _openapi_validate)
     _openapi_field_created_at = _decode_zoned(TimeZones.ZonedDateTime, _required(_openapi_object, "created_at", "OutputsDocument"), _openapi_validate)
-    _openapi_field_status = _decode_zoned(OutputsDocumentStatus, _required(_openapi_object, "status", "OutputsDocument"), _openapi_validate)
+    _openapi_field_status = _decode_zoned(RunStatus, _required(_openapi_object, "status", "OutputsDocument"), _openapi_validate)
     _openapi_field_systems = _decode_zoned(OutputsDocumentSystems, _required(_openapi_object, "systems", "OutputsDocument"), _openapi_validate)
     _openapi_field_simulation = haskey(_openapi_object, "simulation") ? _decode_zoned(Union{Absent,Nothing,SimulationParams}, _openapi_object["simulation"], _openapi_validate) : ABSENT
-    _openapi_field_models = _decode_zoned(OutputsDocumentModels, _required(_openapi_object, "models", "OutputsDocument"), _openapi_validate)
+    _openapi_field_models = _decode_zoned(Vector{Model}, _required(_openapi_object, "models", "OutputsDocument"), _openapi_validate)
     _openapi_unknown = setdiff(String.(collect(keys(_openapi_object))), collect(("schema_version","kind","producer","created_at","status","systems","simulation","models")))
     !_openapi_validate || isempty(_openapi_unknown) || throw(DecodeError("unknown fields while decoding OutputsDocument: " * join(_openapi_unknown, ", ")))
     return OutputsDocument(; schema_version = _openapi_field_schema_version, kind = _openapi_field_kind, producer = _openapi_field_producer, created_at = _openapi_field_created_at, status = _openapi_field_status, systems = _openapi_field_systems, simulation = _openapi_field_simulation, models = _openapi_field_models)
@@ -1052,4 +986,5 @@ end
 export decode
 export encode
 export SchemaValidationError
+export DecodeError
 end # module PowerOutputSchemas

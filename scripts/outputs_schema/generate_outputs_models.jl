@@ -25,7 +25,7 @@ Reduce a generated model to JSON-ready data.
 encode(value) = _encode(value)
 """
 
-const CODEC_EXPORTS = ["decode", "encode", "SchemaValidationError"]
+const CODEC_EXPORTS = ["decode", "encode", "SchemaValidationError", "DecodeError"]
 
 function generate()
     mkpath(dirname(MODULE_PATH))
