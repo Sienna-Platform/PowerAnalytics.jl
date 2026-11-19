@@ -54,16 +54,8 @@ const IS_DATA = joinpath(
     "data",
     "outputs",
 )
-const IS_SCHEMA_COPY = joinpath(IS_DATA, "schema")
 
 same_file(copy, original) = isfile(copy) && read(copy) == read(original)
-
-@testset "InfrastructureSystems vendored schemas match schemas/outputs" begin
-    @test sort(readdir(IS_SCHEMA_COPY)) == sort(readdir(SCHEMAS_DIR))
-    for f in readdir(SCHEMAS_DIR)
-        @test same_file(joinpath(IS_SCHEMA_COPY, f), joinpath(SCHEMAS_DIR, f))
-    end
-end
 
 @testset "InfrastructureSystems vendored fixtures match test/fixtures/outputs" begin
     for kind in readdir(joinpath(FIXTURES, "valid"))

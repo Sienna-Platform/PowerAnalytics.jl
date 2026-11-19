@@ -42,9 +42,8 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Column name. It is unique in the table."
+          "$ref": "common.json#/$defs/PathName",
+          "description": "Column name. It is unique in the table. It is the name of one HDF5 dataset in the table group."
         },
         "dtype": {
           "$ref": "common.json#/$defs/ColumnDtype",

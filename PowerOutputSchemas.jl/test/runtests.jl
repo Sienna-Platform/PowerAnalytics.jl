@@ -117,6 +117,69 @@ const REJECTED = [
         end,
     ),
     (
+        "component axis subset with a slash",
+        "single",
+        doc ->
+            find_component_axis(find_model(doc, "model"), "ThermalStandard")["subset"] = "north/south",
+    ),
+    (
+        "table column name is .",
+        "single",
+        doc -> find_model(doc, "model")["tables"][1]["columns"][1]["name"] = ".",
+    ),
+    (
+        "duration part with ten digits",
+        "single",
+        doc ->
+            find_axis(find_model(doc, "model"), "execution")["interval"] = "PT9999999999M",
+    ),
+    (
+        "duration in seconds",
+        "single",
+        doc -> find_axis(find_model(doc, "model"), "execution")["interval"] = "PT30S",
+    ),
+    (
+        "duration in months",
+        "single",
+        doc -> find_axis(find_model(doc, "model"), "execution")["interval"] = "P1M",
+    ),
+    (
+        "i32 fill_value below the minimum",
+        "single",
+        function (doc)
+            dataset = find_model(doc, "model")["datasets"][2]
+            dataset["dtype"] = "i32"
+            dataset["fill_value"] = -2147483649
+        end,
+    ),
+    (
+        "i32 fill_value above the maximum",
+        "single",
+        function (doc)
+            dataset = find_model(doc, "model")["datasets"][2]
+            dataset["dtype"] = "i32"
+            dataset["fill_value"] = 2147483648
+        end,
+    ),
+    (
+        "i64 fill_value below the minimum",
+        "single",
+        function (doc)
+            dataset = find_model(doc, "model")["datasets"][2]
+            dataset["dtype"] = "i64"
+            dataset["fill_value"] = -9223372036854775809
+        end,
+    ),
+    (
+        "i64 fill_value above the maximum",
+        "single",
+        function (doc)
+            dataset = find_model(doc, "model")["datasets"][2]
+            dataset["dtype"] = "i64"
+            dataset["fill_value"] = 9223372036854775808
+        end,
+    ),
+    (
         "meta with a double underscore",
         "single",
         doc -> find_model(doc, "model")["datasets"][1]["meta"] = "a__b",
@@ -244,6 +307,39 @@ end
     dataset["fill_value"] = 0
     @test decode(DOCUMENT, raw).models[1].datasets[2].fill_value === 0
     @test decode(DOCUMENT, raw, false).models[1].datasets[2].fill_value === 0
+end
+
+@testset "integer fill_value at the dtype endpoints" begin
+    for (dtype, value) in (
+        ("i32", typemin(Int32)),
+        ("i32", typemax(Int32)),
+        ("i64", typemin(Int64)),
+        ("i64", typemax(Int64)),
+    )
+        raw = load_fixture("single")
+        dataset = find_model(raw, "model")["datasets"][2]
+        dataset["dtype"] = dtype
+        dataset["fill_value"] = Int64(value)
+        @test decode(DOCUMENT, raw).models[1].datasets[2].fill_value == value
+    end
+end
+
+@testset "component axis subset without a slash" begin
+    raw = load_fixture("single")
+    find_component_axis(find_model(raw, "model"), "ThermalStandard")["subset"] = "north"
+    @test decode(DOCUMENT, raw).models[1].axes[3].value.subset == "north"
+end
+
+@testset "duration part with nine digits" begin
+    raw = load_fixture("single")
+    find_axis(find_model(raw, "model"), "horizon")["resolution"] = "PT999999999M"
+    @test decode(DOCUMENT, raw).models[1].name == "model"
+end
+
+@testset "table column name with dots that is not . or .." begin
+    raw = load_fixture("single")
+    find_model(raw, "model")["tables"][1]["columns"][1]["name"] = "..."
+    @test decode(DOCUMENT, raw).models[1].tables[1].columns[1].name == "..."
 end
 
 @testset "no Sienna dependency" begin

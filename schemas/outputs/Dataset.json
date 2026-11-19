@@ -46,7 +46,7 @@
       "description": "Element type of the array."
     },
     "fill_value": {
-      "description": "Value of the array cells that no solve wrote. It must match dtype: f64 and f32 take a number or \"NaN\"; i64 and i32 take an integer; bool takes a boolean."
+      "description": "Value of the array cells that no solve wrote. It must match dtype: f64 and f32 take a number or \"NaN\"; i64 and i32 take an integer in the range of the dtype; bool takes a boolean."
     },
     "quantity_kind": {
       "$ref": "common.json#/$defs/QuantityKind",
@@ -112,10 +112,7 @@
       "if": {
         "properties": {
           "dtype": {
-            "enum": [
-              "i64",
-              "i32"
-            ]
+            "const": "i64"
           }
         },
         "required": [
@@ -125,7 +122,30 @@
       "then": {
         "properties": {
           "fill_value": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": -9223372036854775808,
+            "maximum": 9223372036854775807
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "dtype": {
+            "const": "i32"
+          }
+        },
+        "required": [
+          "dtype"
+        ]
+      },
+      "then": {
+        "properties": {
+          "fill_value": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
           }
         }
       }

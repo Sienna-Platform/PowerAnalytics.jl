@@ -141,7 +141,10 @@
         },
         "subset": {
           "type": "string",
-          "description": "Optional suffix of the axis name. The axis name appends it after two underscores to the component types."
+          "not": {
+            "pattern": "/"
+          },
+          "description": "Optional suffix of the axis name. The axis name appends it after two underscores to the component types. It has no slash, because the axis name is one HDF5 path segment."
         }
       },
       "description": "One entry for each component. The axis name is the component_type values of the columns, joined with two underscores. A subset adds two underscores and the subset value."

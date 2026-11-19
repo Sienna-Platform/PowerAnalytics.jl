@@ -120,8 +120,8 @@
     },
     "Duration": {
       "type": "string",
-      "pattern": "^P(?!$)(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?(\\d+S)?)?$",
-      "description": "ISO 8601 duration that uses days, hours, minutes, and seconds."
+      "pattern": "^P(?!$)(\\d{1,9}D)?(T(?=\\d)(\\d{1,9}H)?(\\d{1,9}M)?)?$",
+      "description": "ISO 8601 duration that uses days, hours, and minutes. The minute is the smallest unit: seconds are not permitted. Each part has a maximum of nine digits, so the duration fits in 64-bit milliseconds. Years, months, and weeks are not permitted, because a year and a month have no fixed length."
     },
     "Uuid": {
       "type": "string",
