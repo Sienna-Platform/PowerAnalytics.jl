@@ -8,7 +8,9 @@ outputs-schemas-sync:
 outputs-schemas-generate:
 	$(JULIA_SCHEMAS) 'using Pkg; Pkg.instantiate(); include("scripts/outputs_schema/generate_outputs_models.jl")'
 
-outputs-schemas: outputs-schemas-sync outputs-schemas-generate
+outputs-schemas:
+	$(MAKE) outputs-schemas-sync
+	$(MAKE) outputs-schemas-generate
 
 # Runs sync and generate in a scratch copy, then diffs the schemas and src against the checkout.
 # A missing SCHEMA_DIR is an error.

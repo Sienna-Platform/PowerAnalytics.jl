@@ -20,7 +20,7 @@ end
     end
 end
 
-@testset "invalid_axis_ref is schema-valid (rejected at load by PowerAnalytics)" begin
+@testset "invalid_axis_ref is schema-valid (InfrastructureSystems rejects it in validate_metadata)" begin
     raw = JSON.parsefile(joinpath(FIXTURES, "invalid", "invalid_axis_ref.json"))
     @test decode(PowerOutputSchemas.OutputsDocument, raw) isa PowerOutputSchemas.OutputsDocument
 end

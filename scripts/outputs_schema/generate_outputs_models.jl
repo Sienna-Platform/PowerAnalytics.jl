@@ -34,6 +34,7 @@ function generate()
         name = "PowerOutputSchemas",
         path = MODULE_PATH,
         datetime = :zoned,
+        models_only = true,
     )
     lines = split(read(MODULE_PATH, String), '\n')
     first_decl = findfirst(l -> startswith(l, "@doc ") || startswith(l, "struct ") || startswith(l, "Base.@kwdef struct "), lines)

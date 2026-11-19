@@ -74,7 +74,6 @@
           "unit_system": "COMPONENT_BASE",
           "base_reference": "system",
           "axes": [
-            "time",
             "ThermalStandard",
             "horizon"
           ],
@@ -82,7 +81,6 @@
           "fill_value": "NaN",
           "layout": {
             "chunks": [
-              1,
               76,
               48
             ],
