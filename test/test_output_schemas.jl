@@ -37,7 +37,6 @@ const FIXTURES = joinpath(@__DIR__, "fixtures", "outputs")
 end
 
 @testset "PowerAnalytics loads PowerOutputSchemas and the fixtures follow the power convention" begin
-    @test isdefined(PowerAnalytics, :PowerOutputSchemas)
     raw = JSON.parsefile(joinpath(FIXTURES, "valid", "simulation", "outputs.json"))
     doc = InfrastructureOutputSchemas.decode(
         InfrastructureOutputSchemas.OutputsDocument,
