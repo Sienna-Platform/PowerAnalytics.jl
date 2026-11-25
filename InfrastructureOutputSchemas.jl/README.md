@@ -10,8 +10,11 @@ The `src/` directory is generated from `schemas/outputs/infrastructure/` by `scr
 - `encode(value)` reduces a generated type to JSON-ready data.
 
 ```julia
+import JSON
 using InfrastructureOutputSchemas
-document = decode(OutputsDocument, JSON.parsefile("outputs.json"))
+
+document =
+    decode(InfrastructureOutputSchemas.OutputsDocument, JSON.parsefile("outputs.json"))
 ```
 
 ## Document facts
