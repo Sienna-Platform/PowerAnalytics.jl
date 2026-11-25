@@ -22,18 +22,86 @@ jobs:
 
       steps:
         - uses: actions/checkout@v2
+          with:
+            path: PowerAnalytics.jl
+        # Sibling repos sit next to PowerAnalytics.jl so the `../X` path pins in Project.toml resolve.
+        - uses: actions/checkout@v2
+          with:
+            repository: Sienna-Platform/InfrastructureSystems.jl
+            ref: IS4
+            path: InfrastructureSystems.jl
+        - uses: actions/checkout@v2
+          with:
+            repository: Sienna-Platform/InfrastructureOptimizationModels.jl
+            ref: main
+            path: InfrastructureOptimizationModels.jl
+        - uses: actions/checkout@v2
+          with:
+            repository: Sienna-Platform/SiennaSchemas
+            ref: main
+            path: SiennaSchemas
+        - uses: actions/checkout@v2
+          with:
+            repository: Sienna-Platform/PowerSystems.jl
+            ref: psy6
+            path: PowerSystems.jl
+        - uses: actions/checkout@v2
+          with:
+            repository: Sienna-Platform/PowerFlowFileParser.jl
+            ref: psy6
+            path: PowerFlowFileParser.jl
+        - uses: actions/checkout@v2
+          with:
+            repository: Sienna-Platform/PowerSystemCaseBuilder.jl
+            ref: psy6
+            path: PowerSystemCaseBuilder.jl
+        # PNM psy6 is a monorepo: the packages live in subdirectories, and
+        # PowerNetworkMatrices pins `../PowerMatricesCore.jl`. Copy both next to PowerAnalytics.jl.
+        - uses: actions/checkout@v2
+          with:
+            repository: Sienna-Platform/PowerNetworkMatrices.jl
+            ref: psy6
+            path: pnm-monorepo
+        - name: Place PowerNetworkMatrices packages
+          shell: bash
+          run: |
+            cp -R pnm-monorepo/PowerNetworkMatrices.jl PowerNetworkMatrices.jl
+            cp -R pnm-monorepo/PowerMatricesCore.jl PowerMatricesCore.jl
         - uses: julia-actions/setup-julia@latest
           with:
             version: ${{ matrix.julia-version }}
             arch: ${{ matrix.julia-arch }}
         - uses: julia-actions/julia-buildpkg@latest
+          with:
+            project: PowerAnalytics.jl
           env:
             PYTHON: ""
         - uses: julia-actions/julia-runtest@latest
+          with:
+            project: PowerAnalytics.jl
           continue-on-error: ${{ matrix.julia-version == 'nightly' }}
           env:
             PYTHON: ""
+        - name: Test InfrastructureOutputSchemas
+          shell: bash
+          working-directory: PowerAnalytics.jl
+          run: |
+            julia --project=InfrastructureOutputSchemas.jl/test -e 'using Pkg; Pkg.instantiate()'
+            julia --project=InfrastructureOutputSchemas.jl/test InfrastructureOutputSchemas.jl/test/runtests.jl
+        - name: Test PowerOutputSchemas
+          shell: bash
+          working-directory: PowerAnalytics.jl
+          run: |
+            julia --project=PowerOutputSchemas.jl/test -e 'using Pkg; Pkg.instantiate()'
+            julia --project=PowerOutputSchemas.jl/test PowerOutputSchemas.jl/test/runtests.jl
+        - name: Check that the generated package matches the schemas
+          if: matrix.os == 'ubuntu-latest'
+          shell: bash
+          working-directory: PowerAnalytics.jl
+          run: make outputs-schemas-check
         - uses: julia-actions/julia-processcoverage@v1
+          with:
+            directories: PowerAnalytics.jl/src
         - uses: codecov/codecov-action@v1
           with:
             file: ./lcov.info

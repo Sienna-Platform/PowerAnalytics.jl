@@ -1,0 +1,27 @@
+SCHEMA_DIR ?= ../SiennaSchemas
+JULIA_SCHEMAS = julia --project=scripts/outputs_schema -e
+
+# Needs SCHEMA_DIR (default ../SiennaSchemas) checked out.
+outputs-schemas-sync:
+	SCHEMA_DIR=$(abspath $(SCHEMA_DIR)) $(JULIA_SCHEMAS) 'using Pkg; Pkg.instantiate(); include("scripts/outputs_schema/sync_quantity_kinds.jl")'
+
+outputs-schemas-generate:
+	$(JULIA_SCHEMAS) 'using Pkg; Pkg.instantiate(); include("scripts/outputs_schema/generate_outputs_models.jl")'
+
+outputs-schemas:
+	$(MAKE) outputs-schemas-sync
+	$(MAKE) outputs-schemas-generate
+
+# Runs outputs-schemas in a scratch copy, then diffs the schemas and src against the checkout.
+# A missing SCHEMA_DIR is an error.
+outputs-schemas-check:
+	test -f $(SCHEMA_DIR)/Core/units.json || { echo "SiennaSchemas not found at $(SCHEMA_DIR)"; exit 1; }
+	scratch=$$(mktemp -d) && \
+	mkdir $$scratch/InfrastructureOutputSchemas.jl $$scratch/PowerOutputSchemas.jl && \
+	cp -R Makefile schemas scripts $$scratch/ && \
+	$(MAKE) -C $$scratch outputs-schemas SCHEMA_DIR=$(abspath $(SCHEMA_DIR)) && \
+	diff -r $$scratch/schemas/outputs schemas/outputs && \
+	diff -r $$scratch/InfrastructureOutputSchemas.jl/src InfrastructureOutputSchemas.jl/src && \
+	diff -r $$scratch/PowerOutputSchemas.jl/src PowerOutputSchemas.jl/src; rc=$$?; rm -rf $$scratch; exit $$rc
+
+.PHONY: outputs-schemas-sync outputs-schemas-generate outputs-schemas outputs-schemas-check

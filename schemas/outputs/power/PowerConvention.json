@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The power convention for an outputs document. It limits the vocabulary fields. The generic schema checks the structure.",
+  "properties": {
+    "kind": { "$ref": "common.json#/$defs/Kind" },
+    "models": { "items": { "properties": {
+      "model_type": { "$ref": "common.json#/$defs/ModelType" },
+      "base_power": { "description": "Base power of the system, in MVA." },
+      "datasets": { "items": { "properties": {
+        "quantity_kind": { "$ref": "common.json#/$defs/QuantityKind" } } } },
+      "tables": { "items": { "properties": { "columns": { "items": { "properties": {
+        "quantity_kind": { "$ref": "common.json#/$defs/QuantityKind" } } } } } } }
+    } } }
+  }
+}
