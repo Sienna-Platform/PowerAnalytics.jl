@@ -20,7 +20,7 @@ const REPO = dirname(dirname(@__DIR__))
 const SCHEMA_DIR = ENV["SCHEMA_DIR"]
 if sync_quantity_kinds(
     joinpath(SCHEMA_DIR, "Core", "units.json"),
-    joinpath(REPO, "schemas", "outputs", "common.json"),
+    joinpath(REPO, "schemas", "outputs", "power", "common.json"),
 )
     println("common.json updated")
 else

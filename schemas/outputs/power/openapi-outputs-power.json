@@ -1,0 +1,25 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PowerOutputSchemas",
+    "version": "0.1.0",
+    "description": "The power convention for Sienna analysis-tool output artifacts"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "PowerConvention": {
+        "$ref": "PowerConvention.json"
+      },
+      "QuantityKind": {
+        "$ref": "common.json#/$defs/QuantityKind"
+      },
+      "Kind": {
+        "$ref": "common.json#/$defs/Kind"
+      },
+      "ModelType": {
+        "$ref": "common.json#/$defs/ModelType"
+      }
+    }
+  }
+}

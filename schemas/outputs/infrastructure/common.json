@@ -2,24 +2,6 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Sienna outputs common definitions",
   "$defs": {
-    "Kind": {
-      "enum": [
-        "single",
-        "simulation",
-        "power_flow",
-        "security_analysis"
-      ],
-      "description": "Kind of run. Listing tools use it as a hint."
-    },
-    "ModelType": {
-      "enum": [
-        "decision",
-        "emulation",
-        "power_flow",
-        "security_analysis"
-      ],
-      "description": "Kind of model that wrote the data."
-    },
     "Container": {
       "enum": [
         "variables",
@@ -51,17 +33,11 @@
     },
     "UnitSystem": {
       "enum": [
+        "SYSTEM_BASE",
         "COMPONENT_BASE",
         "NATURAL_UNITS"
       ],
-      "description": "COMPONENT_BASE means per unit, on the base named by base_reference. NATURAL_UNITS means physical units, given in units; it has no base_reference."
-    },
-    "BaseReference": {
-      "enum": [
-        "system",
-        "component"
-      ],
-      "description": "Base of a COMPONENT_BASE value. The value system is the system base power. The value component is the own base of the component."
+      "description": "SYSTEM_BASE means per unit on the system base of the model. COMPONENT_BASE means per unit on the own base of each component. NATURAL_UNITS means a physical unit, given in units."
     },
     "RunStatus": {
       "enum": [
@@ -70,53 +46,6 @@
         "FAILED"
       ],
       "description": "Status of a run. RUNNING means a writer is open. The other two values name the end state."
-    },
-    "QuantityKind": {
-      "enum": [
-        "ActivePower",
-        "ReactivePower",
-        "ApparentPower",
-        "ActivePowerChangeRate",
-        "ElectricalEnergy",
-        "FractionPerTime",
-        "Voltage",
-        "CurrentFlow",
-        "Resistance",
-        "Reactance",
-        "Impedance",
-        "Conductance",
-        "Susceptance",
-        "Angle",
-        "Frequency",
-        "PowerPerFrequency",
-        "VoltagePerPower",
-        "Length",
-        "Elevation",
-        "Duration",
-        "OperationalDuration",
-        "CalendarPeriod",
-        "Dimensionless",
-        "Fraction",
-        "PowerFactor",
-        "HeatRate",
-        "StartFuelPerCapacity",
-        "VolumeFlowRate",
-        "HeadRate",
-        "Volume",
-        "Inductance",
-        "Capacitance",
-        "CostPerCapacity",
-        "CostPerEnergy",
-        "CostPerTime",
-        "CO2Emissions",
-        "Mass",
-        "Money",
-        "CostPerVolume",
-        "CostPerLevel",
-        "EmissionRate",
-        "CostPerMass"
-      ],
-      "description": "Kind of a physical quantity. The list is a copy of the quantity kinds in SiennaSchemas Core/units.json."
     },
     "Duration": {
       "type": "string",
@@ -136,14 +65,14 @@
     "TypeName": {
       "type": "string",
       "pattern": "^[A-Z][A-Za-z0-9]*$",
-      "description": "Name of a Julia type. It starts with an upper case letter."
+      "description": "Name in upper camel case. It starts with an upper case letter."
     },
     "Meta": {
       "type": "string",
       "not": {
         "pattern": "__|/"
       },
-      "description": "Entry label. It has no double underscore and no slash, because the HDF5 path uses both as separators."
+      "description": "Optional text that separates datasets with the same entry type and component type. It has no double underscore and no slash, because the HDF5 path uses both as separators."
     },
     "Timestamp": {
       "type": "string",
@@ -164,7 +93,10 @@
       "if": {
         "properties": {
           "unit_system": {
-            "const": "COMPONENT_BASE"
+            "enum": [
+              "SYSTEM_BASE",
+              "COMPONENT_BASE"
+            ]
           }
         },
         "required": [
@@ -172,9 +104,6 @@
         ]
       },
       "then": {
-        "required": [
-          "base_reference"
-        ],
         "properties": {
           "units": {
             "const": "pu"
@@ -182,13 +111,20 @@
         }
       },
       "else": {
-        "not": {
-          "required": [
-            "base_reference"
-          ]
+        "properties": {
+          "units": {
+            "not": {
+              "const": "pu"
+            }
+          }
         }
       },
-      "description": "A COMPONENT_BASE value requires base_reference and has units pu. Other values have no base_reference."
+      "description": "A SYSTEM_BASE or COMPONENT_BASE value has units pu. A NATURAL_UNITS value has a physical unit, not pu."
+    },
+    "SnakeName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Lower snake case name from the vocabulary of a domain."
     }
   }
 }

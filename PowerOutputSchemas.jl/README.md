@@ -1,7 +1,11 @@
-The `src/` directory is generated from `schemas/outputs/` by `scripts/outputs_schema/generate_outputs_models.jl`. Do not edit it.
+The `src/` directory is generated from `schemas/outputs/power/` by `scripts/outputs_schema/generate_outputs_models.jl`. Do not edit it.
 
-`created_at` requires `Z` or a UTC offset. Axis `initial_timestamp` and simulation `initial_time` are naive local datetimes with no zone.
+This package is the power convention for an outputs document. The generic structure schema is in `InfrastructureOutputSchemas`. The two packages do not depend on each other.
 
-In the document, `models` is an array and each model has a `name`. The `axes` of a model is an array of axis objects. A dataset lists axis names in `axes`.
+`check_power_convention(document)` takes the parsed JSON of an `outputs.json` file. It returns `nothing` when the vocabulary fields follow the convention. It throws `SchemaValidationError` otherwise.
 
-The axis name of a `time`, `execution`, or `horizon` axis is its kind. The axis name of a `component` axis is the `component_type` values joined with `__`, plus `__` and `subset` if present. The axis name of a `label` axis is its `name` field.
+The convention has three lists:
+
+- `Kind`: `single`, `simulation`, `power_flow`, `security_analysis`.
+- `ModelType`: `decision`, `emulation`, `power_flow`, `security_analysis`.
+- `QuantityKind`: a copy of the quantity kinds in SiennaSchemas `Core/units.json`.

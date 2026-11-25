@@ -4,7 +4,6 @@
     "PowerFlowVoltageMagnitude": {
       "quantity_kind": "Voltage",
       "unit_system": "COMPONENT_BASE",
-      "base_reference": "component",
       "units": "pu",
       "component_type": "ACBus"
     },
@@ -16,15 +15,13 @@
     },
     "PowerFlowBranchActivePowerFromTo": {
       "quantity_kind": "ActivePower",
-      "unit_system": "COMPONENT_BASE",
-      "base_reference": "system",
+      "unit_system": "SYSTEM_BASE",
       "units": "pu",
       "component_type": "ACBranch"
     },
     "PowerFlowActivePowerInjection": {
       "quantity_kind": "ActivePower",
-      "unit_system": "COMPONENT_BASE",
-      "base_reference": "system",
+      "unit_system": "SYSTEM_BASE",
       "units": "pu",
       "component_type": "ACBus"
     },

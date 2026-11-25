@@ -33,7 +33,7 @@
           "$ref": "common.json#/$defs/AxisGroup"
         }
       },
-      "description": "One continuous timeline. An emulation model, a power flow, and a security analysis use it. The axis name is time."
+      "description": "One continuous timeline. The axis name is time."
     },
     "ExecutionAxis": {
       "type": "object",
@@ -184,7 +184,7 @@
           "description": "The fixed string labels."
         }
       },
-      "description": "An axis whose entries are not components and not time. It has only fixed string labels. IOM uses it for an extra column dimension of some store arrays. The axis name is the name field."
+      "description": "An axis whose entries are not components and not time. It has only fixed string labels. The axis name is the name field."
     }
   },
   "oneOf": [

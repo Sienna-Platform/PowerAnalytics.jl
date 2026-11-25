@@ -2,9 +2,8 @@ import OpenAPI
 
 const REPO = dirname(dirname(@__DIR__))
 const SCHEMAS = joinpath(REPO, "schemas", "outputs")
-const MODULE_PATH = joinpath(REPO, "PowerOutputSchemas.jl", "src", "PowerOutputSchemas.jl")
 
-# Generates PowerOutputSchemas.jl/src from schemas/outputs/openapi-outputs.json with
+# Generates <name>.jl/src from an index below schemas/outputs/ with
 # OpenAPI.jl, then inserts the public `decode` and `encode` wrappers before the module end.
 const CODEC_DEFINITIONS = """
 \"\"\"
@@ -27,19 +26,46 @@ export decode, encode, SchemaValidationError, DecodeError
 
 """
 
-function generate()
-    mkpath(dirname(MODULE_PATH))
-    OpenAPI.client(
-        joinpath(SCHEMAS, "openapi-outputs.json");
-        name = "PowerOutputSchemas",
-        path = MODULE_PATH,
-        datetime = :zoned,
-        models_only = true,
-    )
-    src = read(MODULE_PATH, String)
-    module_end = first(findlast("end # module", src))
-    write(MODULE_PATH, src[1:(module_end - 1)] * CODEC_DEFINITIONS * src[module_end:end])
+const CONVENTION_DEFINITIONS = """
+\"\"\"
+    check_power_convention(document::AbstractDict)
+
+Check the vocabulary fields of a parsed outputs document against the power convention.
+Throw `SchemaValidationError` when `kind`, a `model_type`, or a `quantity_kind` is not in
+the power lists. Return `nothing` otherwise.
+\"\"\"
+function check_power_convention(document::AbstractDict)
+    decode(PowerConvention, document)
     return nothing
 end
 
-generate()
+export check_power_convention, QuantityKind
+
+"""
+
+function generate(index::AbstractString, name::AbstractString, definitions::AbstractString)
+    module_path = joinpath(REPO, "$name.jl", "src", "$name.jl")
+    mkpath(dirname(module_path))
+    OpenAPI.client(
+        joinpath(SCHEMAS, index);
+        name = name,
+        path = module_path,
+        datetime = :zoned,
+        models_only = true,
+    )
+    src = read(module_path, String)
+    module_end = first(findlast("end # module", src))
+    write(module_path, src[1:(module_end - 1)] * definitions * src[module_end:end])
+    return nothing
+end
+
+generate(
+    joinpath("infrastructure", "openapi-outputs.json"),
+    "InfrastructureOutputSchemas",
+    CODEC_DEFINITIONS,
+)
+generate(
+    joinpath("power", "openapi-outputs-power.json"),
+    "PowerOutputSchemas",
+    CODEC_DEFINITIONS * CONVENTION_DEFINITIONS,
+)

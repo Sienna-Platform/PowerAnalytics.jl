@@ -50,21 +50,17 @@
           "description": "Element type of the column."
         },
         "quantity_kind": {
-          "$ref": "common.json#/$defs/QuantityKind",
-          "description": "Kind of the physical quantity. The name comes from the shared quantity registry."
+          "$ref": "common.json#/$defs/TypeName",
+          "description": "Kind of the physical quantity. The domain convention gives the permitted names."
         },
         "unit_system": {
           "$ref": "common.json#/$defs/UnitSystem",
           "description": "Unit system of the values."
         },
-        "base_reference": {
-          "$ref": "common.json#/$defs/BaseReference",
-          "description": "Base of a COMPONENT_BASE value. It is absent for NATURAL_UNITS."
-        },
         "units": {
           "type": "string",
           "minLength": 1,
-          "description": "Unit of the values. It is pu for COMPONENT_BASE."
+          "description": "Unit of the values. It is pu for SYSTEM_BASE and COMPONENT_BASE."
         }
       },
       "dependentRequired": {

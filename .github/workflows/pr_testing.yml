@@ -79,6 +79,12 @@ jobs:
           project: PowerAnalytics.jl
         env:
           PYTHON: ""
+      - name: Test InfrastructureOutputSchemas
+        shell: bash
+        working-directory: PowerAnalytics.jl
+        run: |
+          julia --project=InfrastructureOutputSchemas.jl/test -e 'using Pkg; Pkg.instantiate()'
+          julia --project=InfrastructureOutputSchemas.jl/test InfrastructureOutputSchemas.jl/test/runtests.jl
       - name: Test PowerOutputSchemas
         shell: bash
         working-directory: PowerAnalytics.jl

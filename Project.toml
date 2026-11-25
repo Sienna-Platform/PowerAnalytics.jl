@@ -17,16 +17,19 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 TimeSeries = "9e3dc215-6440-5c97-bce1-76c03772f85e"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
-# PowerNetworkMatrices, PowerCoreOpenAPIModels, and PowerOperationsOpenAPIModels are
+# PowerNetworkMatrices, PowerCoreOpenAPIModels, PowerOperationsOpenAPIModels, and
+# InfrastructureOutputSchemas are
 # transitive dependencies only. They are listed here so that `[sources]` can pin them:
 # Pkg requires every `[sources]` entry to appear in `[deps]` or `[extras]`.
 [extras]
+InfrastructureOutputSchemas = "4c5cfe00-742f-4387-a1ed-0db451bc13e6"
 PowerCoreOpenAPIModels = "b7b40286-e793-417d-a9a0-b1583e4da1cb"
 PowerNetworkMatrices = "bed98974-b02a-5e2f-9fe0-a103f5c450dd"
 PowerOperationsOpenAPIModels = "a372b6d7-45a2-44c2-8199-6a724b72e8ff"
 
 [sources]
 InfrastructureOptimizationModels = {path = "../InfrastructureOptimizationModels.jl"}
+InfrastructureOutputSchemas = {path = "InfrastructureOutputSchemas.jl"}
 InfrastructureSystems = {path = "../InfrastructureSystems.jl"}
 PowerCoreOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "main", subdir = "PowerCoreOpenAPIModels.jl"}
 PowerNetworkMatrices = {path = "../PowerNetworkMatrices.jl"}

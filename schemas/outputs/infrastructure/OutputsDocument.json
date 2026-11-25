@@ -18,7 +18,7 @@
       "description": "Version of this schema that the document satisfies."
     },
     "kind": {
-      "$ref": "common.json#/$defs/Kind",
+      "$ref": "common.json#/$defs/SnakeName",
       "description": "Kind of run. Listing tools use it as a hint. Readers dispatch on the model_type of each model."
     },
     "producer": {

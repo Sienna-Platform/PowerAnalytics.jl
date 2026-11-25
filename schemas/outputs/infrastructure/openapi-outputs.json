@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "PowerOutputSchemas",
+    "title": "InfrastructureOutputSchemas",
     "version": "0.1.0",
     "description": "Schemas for Sienna analysis-tool output artifacts"
   },
@@ -10,9 +10,6 @@
     "schemas": {
       "Axis": {
         "$ref": "Axis.json"
-      },
-      "BaseReference": {
-        "$ref": "common.json#/$defs/BaseReference"
       },
       "Column": {
         "$ref": "Table.json#/$defs/Column"
@@ -41,26 +38,17 @@
       "HorizonAxis": {
         "$ref": "Axis.json#/$defs/HorizonAxis"
       },
-      "Kind": {
-        "$ref": "common.json#/$defs/Kind"
-      },
       "LabelAxis": {
         "$ref": "Axis.json#/$defs/LabelAxis"
       },
       "Model": {
         "$ref": "Model.json"
       },
-      "ModelType": {
-        "$ref": "common.json#/$defs/ModelType"
-      },
       "OutputsDocument": {
         "$ref": "OutputsDocument.json"
       },
       "ProducerInfo": {
         "$ref": "OutputsDocument.json#/$defs/ProducerInfo"
-      },
-      "QuantityKind": {
-        "$ref": "common.json#/$defs/QuantityKind"
       },
       "RunStatus": {
         "$ref": "common.json#/$defs/RunStatus"

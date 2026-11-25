@@ -5,6 +5,7 @@ DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 InfrastructureOptimizationModels = "bed98974-b02a-5e2f-9ee0-a103f5c45069"
+InfrastructureOutputSchemas = "4c5cfe00-742f-4387-a1ed-0db451bc13e6"
 InfrastructureSystems = "2cd47ed4-ca9b-11e9-27f2-ab636a7671f1"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
@@ -27,6 +28,7 @@ YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
 [sources]
 InfrastructureOptimizationModels = {path = "../../InfrastructureOptimizationModels.jl"}
+InfrastructureOutputSchemas = {path = "../InfrastructureOutputSchemas.jl"}
 InfrastructureSystems = {path = "../../InfrastructureSystems.jl"}
 PowerAnalytics = {path = ".."}
 PowerCoreOpenAPIModels = {url = "https://github.com/Sienna-Platform/PowerOpenAPIModels.git", rev = "main", subdir = "PowerCoreOpenAPIModels.jl"}
@@ -39,5 +41,6 @@ PowerSystems = {path = "../../PowerSystems.jl"}
 PowerTableDataParser = {url = "https://github.com/NLR-Sienna/PowerTableDataParser.jl.git", rev = "psy6"}
 
 [compat]
+InfrastructureOutputSchemas = "0.1"
 JSON = "1"
 PowerOutputSchemas = "0.1"

@@ -22,7 +22,7 @@
     },
     "entry_type": {
       "$ref": "common.json#/$defs/TypeName",
-      "description": "Name of the entry type, for example ActivePowerVariable."
+      "description": "Name of the entry type."
     },
     "component_type": {
       "$ref": "common.json#/$defs/TypeName",
@@ -49,21 +49,17 @@
       "description": "Value of the array cells that no solve wrote. It must match dtype: f64 and f32 take a number or \"NaN\"; i64 and i32 take an integer in the range of the dtype; bool takes a boolean."
     },
     "quantity_kind": {
-      "$ref": "common.json#/$defs/QuantityKind",
-      "description": "Kind of the physical quantity. The name comes from the shared quantity registry."
+      "$ref": "common.json#/$defs/TypeName",
+      "description": "Kind of the physical quantity. The domain convention gives the permitted names."
     },
     "unit_system": {
       "$ref": "common.json#/$defs/UnitSystem",
       "description": "Unit system of the values."
     },
-    "base_reference": {
-      "$ref": "common.json#/$defs/BaseReference",
-      "description": "Base of a COMPONENT_BASE value. It is absent for NATURAL_UNITS."
-    },
     "units": {
       "type": "string",
       "minLength": 1,
-      "description": "Unit of the values. It is pu for COMPONENT_BASE."
+      "description": "Unit of the values. It is pu for SYSTEM_BASE and COMPONENT_BASE."
     },
     "layout": {
       "$ref": "#/$defs/DatasetLayout",

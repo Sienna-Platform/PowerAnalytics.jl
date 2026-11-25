@@ -17,10 +17,11 @@ outputs-schemas:
 outputs-schemas-check:
 	test -f $(SCHEMA_DIR)/Core/units.json || { echo "SiennaSchemas not found at $(SCHEMA_DIR)"; exit 1; }
 	scratch=$$(mktemp -d) && \
-	mkdir $$scratch/PowerOutputSchemas.jl && \
+	mkdir $$scratch/InfrastructureOutputSchemas.jl $$scratch/PowerOutputSchemas.jl && \
 	cp -R Makefile schemas scripts $$scratch/ && \
 	$(MAKE) -C $$scratch outputs-schemas SCHEMA_DIR=$(abspath $(SCHEMA_DIR)) && \
 	diff -r $$scratch/schemas/outputs schemas/outputs && \
+	diff -r $$scratch/InfrastructureOutputSchemas.jl/src InfrastructureOutputSchemas.jl/src && \
 	diff -r $$scratch/PowerOutputSchemas.jl/src PowerOutputSchemas.jl/src; rc=$$?; rm -rf $$scratch; exit $$rc
 
 .PHONY: outputs-schemas-sync outputs-schemas-generate outputs-schemas outputs-schemas-check

@@ -1,6 +1,7 @@
 import JSON
+import InfrastructureOutputSchemas
 
-const SCHEMAS_DIR = joinpath(dirname(@__DIR__), "schemas", "outputs")
+const SCHEMAS_DIR = joinpath(dirname(@__DIR__), "schemas", "outputs", "power")
 const UNITS_JSON =
     joinpath(dirname(dirname(@__DIR__)), "SiennaSchemas", "Core", "units.json")
 
@@ -19,11 +20,9 @@ end
 @testset "quantities.json rows are well formed" begin
     reg = SCHEMA_DOCS["quantities.json"]
     for (name, row) in reg["entries"]
-        @test row["unit_system"] in ("COMPONENT_BASE", "NATURAL_UNITS")
-        @test (row["unit_system"] == "COMPONENT_BASE") == haskey(row, "base_reference")
-        if row["unit_system"] == "COMPONENT_BASE"
-            @test row["units"] == "pu"
-        end
+        @test row["unit_system"] in ("SYSTEM_BASE", "COMPONENT_BASE", "NATURAL_UNITS")
+        @test !haskey(row, "base_reference")
+        @test (row["units"] == "pu") == (row["unit_system"] != "NATURAL_UNITS")
     end
 end
 
@@ -37,13 +36,14 @@ const FIXTURES = joinpath(@__DIR__, "fixtures", "outputs")
     end
 end
 
-@testset "PowerAnalytics loads PowerOutputSchemas and the fixtures decode through it" begin
+@testset "PowerAnalytics loads PowerOutputSchemas and the fixtures follow the power convention" begin
     @test isdefined(PowerAnalytics, :PowerOutputSchemas)
     raw = JSON.parsefile(joinpath(FIXTURES, "valid", "simulation", "outputs.json"))
-    doc = PowerAnalytics.PowerOutputSchemas.decode(
-        PowerAnalytics.PowerOutputSchemas.OutputsDocument,
+    doc = InfrastructureOutputSchemas.decode(
+        InfrastructureOutputSchemas.OutputsDocument,
         raw,
     )
+    @test isnothing(PowerAnalytics.PowerOutputSchemas.check_power_convention(raw))
     @test [m.name for m in doc.models] == ["UC", "ED", "EM"]
 end
 
